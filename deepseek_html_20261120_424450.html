@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meditation Lap Timer - with Reggae Metronome + Round Progress</title>
+    <style>
+        :root {
+            --bg-color: #f5f5f5;
+            --text-color: #333;
+            --panel-bg: white;
+            --border-color: #ddd;
+            --timer-bg: white;
+            --lap-odd-bg: #f9f9f9;
+            --lap-even-bg: white;
+            --button-text: white;
+            --chart-bg: white;
+            --chart-text: #666;
+            --tab-active: #4CAF50;
+            --tab-inactive: #f1f1f1;
+            --faster-color: #4CAF50;
+            --slower-color: #F44336;
+            --neutral-color: #999;
+            --zero-line-color: #2196F3;
+        }
+        .dark-mode {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --panel-bg: #1e1e1e;
+            --border-color: #333;
+            --timer-bg: #1e1e1e;
+            --lap-odd-bg: #1e1e1e;
+            --lap-even-bg: #252525;
+            --button-text: white;
+            --chart-bg: #1e1e1e;
+            --chart-text: #aaa;
+            --tab-active: #2E7D32;
+            --tab-inactive: #2a2a2a;
+            --faster-color: #4CAF50;
+            --slower-color: #F44336;
+            --neutral-color: #aaa;
+            --zero-line-color: #64B5F6;
+        }
+        body {
+            font-family: Arial, sans-serif; margin: 0; padding: 0;
+            background-color: var(--bg-color); color: var(--text-color);
+            height: 100vh; overflow: hidden;
+            -webkit-user-select: none; user-select: none;
+            transition: background-color 0.3s, color 0.3s;
+            display: flex; flex-direction: row;
+        }
+        .beads-sidebar {
+            width: 60px; display: flex; flex-direction: column; align-items: center;
+            padding: 10px 5px; border-right: 1px solid var(--border-color);
+            background-color: var(--panel-bg); overflow-y: auto; gap: 5px;
+        }
+        .bead-container { display: flex; flex-direction: column; gap: 5px; align-items: center; width: 100%; }
+        .bead {
+            width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 0.8em; flex-shrink: 0; position: relative;
+            box-shadow: inset 0 -3px 5px rgba(0,0,0,0.3), inset 0 3px 5px rgba(255,255,255,0.3), 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;
+        }
+        .bead.spacer {
+            width: 36px; height: 36px; margin: 10px 0; font-size: 1em;
+            background: linear-gradient(145deg, #e68900, #ff9800);
+            box-shadow: inset 0 -4px 6px rgba(0,0,0,0.3), inset 0 4px 6px rgba(255,255,255,0.4), 0 6px 10px rgba(0,0,0,0.3);
+            border: 1px solid #E65100; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+        .bead.green { background: linear-gradient(145deg, #2e7d32, var(--faster-color)); border: 1px solid #1b5e20; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .bead.yellow { background: linear-gradient(145deg, #f9a825, #ffeb3b); border: 1px solid #f57f17; color: #333; text-shadow: 0 1px 1px rgba(255,255,255,0.5); }
+        .bead.red { background: linear-gradient(145deg, #c62828, var(--slower-color)); border: 1px solid #b71c1c; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .bead.black { background: linear-gradient(145deg, #212121, #424242); border: 1px solid #000; color: white; text-shadow: 0 1px 2px rgba(255,255,255,0.3); }
+        .bead::before { content: ''; position: absolute; top: 15%; left: 15%; width: 20%; height: 20%; background: rgba(255,255,255,0.4); border-radius: 50%; filter: blur(1px); }
+        .bead:hover { transform: scale(1.1); }
+        .bead:not(.green):not(.yellow):not(.red):not(.black):not(.spacer) { background: linear-gradient(145deg, #d4b59e, #e0c9a6); border: 1px solid #c0a080; color: #5d4037; text-shadow: 0 1px 1px rgba(255,255,255,0.5); }
+        .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .header { padding: 10px; border-bottom: 1px solid var(--border-color); background-color: var(--panel-bg); }
+        .main-tab-navigation { display: flex; background-color: var(--panel-bg); border-bottom: 1px solid var(--border-color); }
+        .main-tab-button { flex: 1; padding: 12px 5px; text-align: center; background-color: var(--tab-inactive); border: none; border-right: 1px solid var(--border-color); color: var(--text-color); font-weight: bold; cursor: pointer; transition: all 0.3s; font-size: 0.9em; }
+        .main-tab-button:last-child { border-right: none; }
+        .main-tab-button.active { background-color: var(--tab-active); color: white; }
+        .main-tab-button:hover:not(.active) { background-color: var(--border-color); }
+        .main-tab-content { display: none; flex: 1; overflow: hidden; }
+        .main-tab-content.active { display: flex; flex-direction: column; }
+        .top-stats { display: flex; background-color: var(--panel-bg); border-bottom: 1px solid var(--border-color); padding: 12px 20px; align-items: center; gap: 30px; }
+        .baseline-display { display: flex; align-items: center; gap: 15px; font-size: 1.4em; font-weight: bold; flex: 1; }
+        .baseline-label { white-space: nowrap; color: var(--chart-text); font-size: 0.8em; }
+        .baseline-value { display: flex; align-items: center; gap: 10px; }
+        .baseline-trend-indicator { display: inline-flex; align-items: center; justify-content: center; }
+        .baseline-trend-up { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 16px solid var(--faster-color); }
+        .baseline-trend-down { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 16px solid var(--slower-color); }
+        .baseline-trend-neutral { width: 16px; height: 3px; background-color: var(--neutral-color); margin: 0 8px; }
+        .baseline-time { font-family: monospace; font-size: 1.5em; min-width: 100px; text-align: center; font-weight: bold; }
+        .running-display { display: flex; align-items: center; gap: 15px; font-size: 1.4em; font-weight: bold; border-left: 1px solid var(--border-color); padding-left: 30px; }
+        .running-label { white-space: nowrap; color: var(--chart-text); font-size: 0.8em; }
+        .running-value { display: flex; align-items: center; gap: 10px; }
+        .running-trend-indicator { display: inline-flex; align-items: center; justify-content: center; }
+        .running-trend-up { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 16px solid var(--faster-color); }
+        .running-trend-down { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 16px solid var(--slower-color); }
+        .running-trend-neutral { width: 16px; height: 3px; background-color: var(--neutral-color); margin: 0 8px; }
+        .running-time { font-family: monospace; font-size: 1.5em; min-width: 130px; text-align: center; font-weight: bold; }
+        .faster-color { color: var(--faster-color); }
+        .slower-color { color: var(--slower-color); }
+        .neutral-color { color: var(--text-color); }
+        .settings-container { flex: 1; overflow-y: auto; padding: 15px; background-color: var(--bg-color); }
+        .settings-section { margin-bottom: 25px; padding: 15px; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--panel-bg); }
+        .settings-section h3 { margin-top: 0; margin-bottom: 15px; color: var(--text-color); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
+        .settings-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .settings-row label { flex: 1; font-weight: bold; min-width: 140px; }
+        .settings-row input, .settings-row select { flex: 2; padding: 8px 10px; border-radius: 5px; border: 1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-color); font-size: 0.95em; }
+        .time-input-group { display: flex; align-items: center; gap: 5px; flex: 2; }
+        .time-input { width: 60px; text-align: center; }
+        .time-label { font-size: 0.9em; color: var(--chart-text); min-width: 30px; }
+        .audio-looper-section { margin-top: 20px; }
+        .audio-looper-controls { display: flex; flex-direction: column; gap: 10px; }
+        .audio-looper-buttons { display: flex; gap: 8px; margin-top: 5px; }
+        .audio-looper-buttons button { padding: 8px 12px; font-size: 0.9em; cursor: pointer; border: none; border-radius: 3px; font-weight: bold; color: var(--button-text); flex: 1; }
+        #toggleLoopBtn { background-color: #4CAF50; }
+        #toggleLoopBtn.active { background-color: #FF9800; }
+        #stopAudioBtn { background-color: #F44336; }
+        #audioPlayer { width: 100%; margin-top: 8px; }
+        .instructions { text-align: center; color: var(--chart-text); font-size: 0.8em; padding: 5px; flex: 1; }
+        #wakeLockStatus { font-size: 0.7em; color: var(--chart-text); text-align: center; padding: 3px; }
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 10px; gap: 10px; }
+        .timer-display { text-align: center; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--timer-bg); flex-shrink: 0; }
+        #currentLapDisplay { font-size: 1.2em; margin: 5px 0; font-weight: bold; }
+        #currentLapTime { font-size: 2em; margin: 5px 0; font-family: monospace; }
+        #totalTime { font-size: 1.2em; color: var(--chart-text); margin: 5px 0; font-family: monospace; }
+        .stats-container { margin-top: 15px; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--panel-bg); font-size: 0.9em; }
+        .stat-item { display: flex; justify-content: space-between; margin: 3px 0; }
+        .stat-label { font-weight: bold; }
+        .stat-value { font-family: monospace; }
+        .trend-indicator { display: inline-block; margin-left: 5px; vertical-align: middle; }
+        .trend-up { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 10px solid var(--faster-color); }
+        .trend-down { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 10px solid var(--slower-color); }
+        .trend-neutral { width: 10px; height: 2px; background-color: var(--neutral-color); margin: 4px 0; }
+        .trend-value { font-size: 0.8em; margin-left: 3px; color: var(--chart-text); }
+        .breathing-timer-main {
+            margin-top: 15px; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px;
+            background-color: var(--panel-bg); position: relative; overflow: visible;
+        }
+        /* ========== SCOPED REGGAE METRONOME STYLES ========== */
+        .rm-app {
+            --rm-bg: #0f3460; --rm-bg-dark: #1a1a2e; --rm-panel: #0b2a44; --rm-text: #e0f2fe;
+            --rm-muted: #9ad0ff; --rm-accent: #4cbb7c; --rm-warm: #ffd966;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: var(--rm-bg); padding: 1rem; border-radius: 1rem; color: var(--rm-text);
+            position: relative; max-height: 420px; overflow-y: auto;
+        }
+        .rm-app * { box-sizing: border-box; }
+        .rm-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding-bottom: 0.4rem; border-bottom: 1px solid #2a4a7a; }
+        .rm-title-group { display: flex; align-items: baseline; gap: 0.5rem; }
+        .rm-title { color: white; font-size: 1rem; font-weight: 600; }
+        .rm-version { color: #9ad0ff; font-size: 0.6rem; font-weight: bold; background: #1e3a5f; padding: 0.1rem 0.5rem; border-radius: 1rem; }
+        .rm-gear { background: none; border: none; font-size: 1.5rem; color: #b8d0f0; cursor: pointer; padding: 0.2rem 0.5rem; border-radius: 50%; }
+        .rm-gear:active { background: #2a4a7a; }
+        .rm-settings-overlay {
+            position: fixed; bottom: 0; left: 0; right: 0; background: #0f3460;
+            border-radius: 2rem 2rem 0 0; padding: 1.5rem; max-height: 85vh; overflow-y: auto;
+            transform: translateY(100%); transition: transform 0.3s ease; z-index: 2000;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.5); color: var(--rm-text);
+        }
+        .rm-settings-overlay.open { transform: translateY(0); }
+        .rm-settings-overlay .rm-close { background: none; border: none; font-size: 1.8rem; color: #b8d0f0; cursor: pointer; float: right; padding: 0 0.5rem; }
+        .rm-settings-overlay h2 { color: white; margin-bottom: 1.5rem; font-size: 1.3rem; }
+        .rm-setting-row { margin-bottom: 1.5rem; }
+        .rm-setting-row > label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #cbe4fe; }
+        .rm-help { font-size: 0.75rem; color: #9dc8f0; margin-top: 5px; }
+        .rm-settings-overlay input[type="file"], .rm-settings-overlay select { background: #1e3a5f; border: 1px solid #3f78a0; padding: 0.5rem; border-radius: 2rem; color: white; width: 100%; }
+        .rm-chord-options { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+        .rm-chord-options label { display: flex; align-items: center; gap: 0.4rem; color: #cbe4fe; cursor: pointer; font-weight: normal; font-size: 0.8rem; background: #1e3a5f; padding: 0.2rem 0.7rem; border-radius: 2rem; border: 1px solid #3f78a0; }
+        .rm-chord-options label:has(input:checked) { background: #2a6b9e; border-color: #4cbb7c; }
+        .rm-chord-options input[type="radio"] { accent-color: #4cbb7c; width: 14px; height: 14px; margin: 0; }
+        .rm-toggle-row { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.3rem; }
+        .rm-toggle-row label { display: flex; align-items: center; gap: 0.5rem; font-weight: normal; color: #cbe4fe; cursor: pointer; }
+        .rm-toggle-row input[type="checkbox"] { accent-color: #4cbb7c; width: 18px; height: 18px; }
+        .rm-note { font-size: 0.7rem; color: #89b9e0; text-align: center; margin-top: 1rem; }
+        .rm-settings-overlay hr { border-color: #2a5a7a; margin: 1rem 0; }
+        .rm-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1999; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .rm-backdrop.open { opacity: 1; pointer-events: auto; }
+        .rm-mode-selector { background: #071e32; border-radius: 3rem; padding: 0.4rem; margin-bottom: 0.6rem; display: flex; gap: 0.3rem; justify-content: space-between; flex-wrap: wrap; }
+        .rm-mode-btn { flex: 1; background: #1e2f47; border: none; border-radius: 2rem; padding: 0.4rem 0.2rem; color: #9ad0ff; font-size: 0.6rem; font-weight: bold; cursor: pointer; text-align: center; min-width: 55px; }
+        .rm-mode-btn.active { background: #4cbb7c; color: white; }
+        .rm-mode-btn:active { transform: scale(0.95); }
+        .rm-circular-wrapper { display: flex; justify-content: center; margin: 0.3rem 0 0.6rem; position: relative; }
+        .rm-progress-ring { position: relative; width: min(220px, 60vw); height: min(220px, 60vw); }
+        .rm-progress-ring canvas { width: 100% !important; height: 100% !important; border-radius: 50%; display: block; position: relative; z-index: 2; }
+        .rm-inner-flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; pointer-events: none; z-index: 10; opacity: 0; transition: opacity 0.05s linear; }
+        .rm-inner-flash.orange { background: radial-gradient(circle, #ffaa33cc 0%, #ff8800aa 50%, #ff660099 100%); box-shadow: 0 0 30px #ffaa33; }
+        .rm-inner-flash.teal { background: radial-gradient(circle, #2bd1fccc 0%, #1aaaccaa 50%, #0088aa99 100%); box-shadow: 0 0 40px #2bd1fc; }
+        .rm-inner-flash.major { background: radial-gradient(circle, #ffaa33cc 0%, #ff8800aa 50%, #ff660099 100%); box-shadow: 0 0 30px #ffaa33; }
+        .rm-inner-flash.minor { background: radial-gradient(circle, #9b59b6cc 0%, #8e44adaa 50%, #6c348399 100%); box-shadow: 0 0 30px #9b59b6; }
+        .rm-center-info { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; width: 100%; pointer-events: none; z-index: 15; }
+        .rm-big-seconds { font-size: clamp(2rem, 12vw, 3rem); font-weight: 800; font-family: monospace; color: #e0f2fe; line-height: 1; letter-spacing: 2px; text-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        .rm-mantra-label { font-size: 0.8rem; color: #9ad0ff; margin-top: 0.2rem; }
+        .rm-round-info { font-size: 0.65rem; color: #b0d4ff; margin-top: 0.15rem; }
+        .rm-tally-section { background: #071e32; border-radius: 3rem; padding: 0.5rem 0.9rem; margin: 0.4rem 0; display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+        .rm-tally-label { font-weight: bold; color: #ffd966; font-size: 0.8rem; }
+        .rm-tally-controls { display: flex; align-items: center; gap: 0.5rem; }
+        .rm-tally-btn { background: #2d5a88; border: none; font-size: 1rem; font-weight: bold; width: 28px; height: 28px; border-radius: 50%; color: white; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+        .rm-tally-btn:active { background: #0f3b5c; }
+        .rm-tally-btn.rm-reset { background: #6b2e2e; font-size: 0.6rem; width: auto; padding: 0 0.6rem; border-radius: 2rem; }
+        .rm-tally-count { font-size: 1.3rem; font-weight: bold; min-width: 45px; text-align: center; color: #4cbb7c; font-family: monospace; }
+        .rm-mantra-wheel { background: #071e32; border-radius: 3rem; padding: 0.5rem 0.7rem; margin: 0.4rem 0; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+        .rm-wheel-label { font-weight: bold; color: white; font-size: 0.8rem; }
+        .rm-wheel-control { display: flex; align-items: center; gap: 0.4rem; background: #1e2f47; padding: 0.1rem 0.5rem; border-radius: 3rem; }
+        .rm-wheel-btn { background: #2d5a88; border: none; font-size: 1.1rem; font-weight: bold; width: 28px; height: 28px; border-radius: 50%; color: white; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+        .rm-wheel-btn:active { background: #0f3b5c; }
+        .rm-mantra-value { font-size: 1.1rem; font-weight: bold; min-width: 34px; text-align: center; color: #ffd966; }
+        .rm-seconds-hint { color: #b0d4ff; font-size: 0.75rem; }
+        .rm-pending-badge { background: #f0a500; color: #1e2f47; padding: 0.1rem 0.4rem; border-radius: 2rem; font-size: 0.55rem; font-weight: bold; }
+        .rm-metronome-control { background: #071e32; border-radius: 3rem; padding: 0.4rem 0.7rem; margin: 0.3rem 0; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+        .rm-metronome-label { font-size: 0.7rem; color: #ffd966; font-weight: bold; }
+        .rm-metronome-label small { font-size: 0.55rem; color: #9ad0ff; }
+        .rm-metronome-toggle { background: #4cbb7c; border: none; border-radius: 2rem; padding: 0.2rem 0.7rem; color: white; font-weight: bold; cursor: pointer; font-size: 0.75rem; }
+        .rm-metronome-toggle.inactive { background: #2d5a88; }
+        .rm-swing-control { background: #071e32; border-radius: 3rem; padding: 0.3rem 0.7rem; margin: 0.25rem 0; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+        .rm-swing-control label { color: #ffd966; font-size: 0.7rem; font-weight: bold; }
+        .rm-swing-control input[type="range"] { flex: 1; min-width: 70px; accent-color: #4cbb7c; background: #1e2f47; height: 4px; border-radius: 2px; }
+        .rm-swing-control span { color: #9ad0ff; font-size: 0.65rem; min-width: 34px; text-align: right; }
+        .rm-status-row { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: center; }
+        .rm-wake-badge, .rm-mute-badge { background: #2e6b3e; color: #c8ffb0; padding: 0.15rem 0.5rem; border-radius: 2rem; font-size: 0.6rem; font-weight: bold; }
+        .rm-mute-badge { background: #6b2e2e; cursor: pointer; }
+        .rm-mute-badge.muted { background: #b3413a; color: white; }
+        .rm-action-buttons { display: flex; gap: 0.8rem; margin: 0.6rem 0; }
+        .rm-action-buttons button { border: none; font-weight: bold; border-radius: 3rem; padding: 0.6rem 1rem; font-size: 0.9rem; cursor: pointer; flex: 1; }
+        .rm-btn-start { background: #2e8b57; color: white; }
+        .rm-btn-stop { background: #b3413a; color: white; }
+        .rm-btn-one-shot { background: #f0a500; color: #1e2f47; }
+        .rm-status-msg { background: #071e32; padding: 0.4rem; border-radius: 2rem; font-size: 0.75rem; color: #b3e4ff; text-align: center; margin: 0.25rem 0 0; }
+        .rm-footer { font-size: 0.55rem; text-align: center; margin-top: 0.6rem; color: #6f9fcf; }
+        .rm-bg-audio-bar { background: #071e32; border-radius: 3rem; padding: 0.4rem 0.7rem; margin: 0.3rem 0; display: none; align-items: center; justify-content: space-between; gap: 0.3rem; flex-wrap: wrap; }
+        .rm-bg-audio-bar.visible { display: flex; }
+        .rm-bg-audio-controls { display: flex; gap: 0.3rem; align-items: center; flex-shrink: 0; }
+        .rm-bg-audio-btn { background: #2d5a88; border: none; border-radius: 2rem; padding: 0.2rem 0.6rem; color: white; font-weight: bold; cursor: pointer; font-size: 0.65rem; min-width: 40px; }
+        .rm-bg-audio-btn.playing { background: #4cbb7c; }
+        .rm-bg-audio-info { color: #9ad0ff; font-size: 0.55rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 40px; }
+        .rm-bg-audio-right { display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
+        .rm-bg-volume-control { display: flex; align-items: center; gap: 0.2rem; }
+        .rm-bg-volume-control input[type="range"] { width: 40px; accent-color: #4cbb7c; background: #1e2f47; height: 4px; border-radius: 2px; }
+        .rm-bg-volume-control span { color: #9ad0ff; font-size: 0.5rem; min-width: 24px; }
+        .rm-bg-loop-badge { font-size: 0.45rem; color: #ffd966; background: #1e2f47; padding: 0.1rem 0.3rem; border-radius: 1rem; white-space: nowrap; }
+        /* ========== END SCOPED REGGAE METRONOME STYLES ========== */
+        .chart-container { height: 150px; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--chart-bg); flex-shrink: 0; position: relative; padding: 10px; }
+        #cumulativeChart { width: 100%; height: 100%; }
+        .laps-scroll-container { flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--panel-bg); width: 340px; }
+        .lap-container { min-height: 100%; display: flex; flex-direction: column; }
+        .lap { padding: 8px 6px; border-bottom: 1px solid var(--border-color); font-size: 1em; display: flex; justify-content: space-between; align-items: center; gap: 5px; }
+        .lap:nth-child(odd) { background-color: var(--lap-odd-bg); }
+        .lap:nth-child(even) { background-color: var(--lap-even-bg); }
+        .lap.fastest { background-color: rgba(76,175,80,0.2) !important; border-left: 3px solid var(--faster-color); }
+        .lap.slowest { background-color: rgba(244,67,54,0.2) !important; border-left: 3px solid var(--slower-color); }
+        .lap-info { display: flex; align-items: center; gap: 6px; flex: 2; }
+        .lap-number { font-weight: bold; min-width: 40px; }
+        .lap-trend { display: flex; align-items: center; gap: 3px; min-width: 70px; }
+        .lap-time { font-family: monospace; min-width: 65px; text-align: right; font-size: 0.95em; }
+        .lap-expected { display: flex; align-items: center; gap: 5px; min-width: 100px; justify-content: flex-end; }
+        .expected-indicator { display: inline-block; }
+        .expected-up { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 8px solid var(--faster-color); }
+        .expected-down { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 8px solid var(--slower-color); }
+        .expected-neutral { width: 8px; height: 2px; background-color: var(--neutral-color); }
+        .expected-value { font-family: monospace; min-width: 85px; text-align: right; font-size: 0.95em; }
+        .expected-value.faster-color { color: var(--faster-color); }
+        .expected-value.slower-color { color: var(--slower-color); }
+        .expected-value.neutral-color { color: var(--text-color); }
+        .total-time { font-family: monospace; color: var(--chart-text); min-width: 80px; text-align: right; font-size: 0.9em; }
+        .lap-trend-indicator { display: inline-block; }
+        .lap-trend-up { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 8px solid var(--faster-color); }
+        .lap-trend-down { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 8px solid var(--slower-color); }
+        .lap-trend-neutral { width: 8px; height: 2px; background-color: var(--neutral-color); }
+        .lap-trend-value { font-size: 0.8em; color: var(--chart-text); min-width: 50px; font-family: monospace; }
+        .controls { padding: 10px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border-color); background-color: var(--panel-bg); flex-shrink: 0; }
+        .button-row { display: flex; gap: 8px; }
+        button { padding: 12px; font-size: 1em; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; color: var(--button-text); flex: 1; }
+        #startLapBtn { background-color: var(--faster-color); }
+        #stopBtn { background-color: var(--slower-color); display: none; }
+        #resetBtn { background-color: #2196F3; }
+        #fullscreenBtn { background-color: #9C27B0; }
+        #darkModeBtn { background-color: #555; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .round-progress-info { font-size: 0.8em; color: var(--chart-text); text-align: center; margin-top: 5px; }
+        @media (min-width: 768px) {
+            .beads-sidebar { width: 70px; }
+            .bead { width: 35px; height: 35px; }
+            .bead.spacer { width: 40px; height: 40px; }
+            .top-stats { padding: 15px 25px; gap: 40px; }
+            .baseline-display, .running-display { font-size: 1.5em; }
+            .baseline-time, .running-time { font-size: 1.6em; }
+            .main-content { flex-direction: row; height: calc(100vh - 200px); }
+            .timer-display { width: 360px; height: 100%; overflow-y: auto; }
+            .chart-container { height: 100%; flex: 1; }
+            .laps-scroll-container { width: 340px; height: 100%; }
+            #currentLapDisplay { font-size: 1.5em; }
+            #currentLapTime { font-size: 3em; }
+            #totalTime { font-size: 1.5em; }
+            .breathing-timer-main { margin-top: 20px; }
+        }
+        @media (max-width: 767px) {
+            body { flex-direction: column; }
+            .beads-sidebar { width: 100%; height: 70px; flex-direction: row; padding: 5px 10px; border-right: none; border-bottom: 1px solid var(--border-color); overflow-x: auto; overflow-y: hidden; }
+            .bead-container { flex-direction: row; flex-wrap: nowrap; justify-content: flex-start; width: auto; height: 100%; }
+            .bead { width: 25px; height: 25px; font-size: 0.7em; }
+            .bead.spacer { width: 30px; height: 30px; margin: 0 10px; }
+            .main-wrapper { flex: 1; width: 100%; }
+            .top-stats { flex-direction: column; align-items: flex-start; padding: 12px; gap: 10px; }
+            .baseline-display { width: 100%; font-size: 1.2em; }
+            .running-display { width: 100%; border-left: none; border-top: 1px solid var(--border-color); padding-left: 0; padding-top: 10px; font-size: 1.2em; }
+            .baseline-time, .running-time { font-size: 1.3em; min-width: 100px; }
+            .lap { font-size: 0.8em; padding: 6px 4px; flex-wrap: wrap; }
+            .lap-info { gap: 4px; flex: 1; }
+            .lap-number { min-width: 35px; }
+            .lap-trend { min-width: 55px; }
+            .lap-time { min-width: 50px; font-size: 0.85em; }
+            .lap-expected { min-width: 85px; gap: 3px; }
+            .expected-value { min-width: 70px; font-size: 0.85em; }
+            .total-time { min-width: 65px; font-size: 0.8em; }
+            .laps-scroll-container { width: 100%; }
+            .settings-row { flex-direction: column; align-items: flex-start; }
+            .settings-row label { min-width: 100%; }
+            .settings-row input, .settings-row select { min-width: 100%; }
+            .time-input-group { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="beads-sidebar">
+        <div class="bead-container" id="beadContainer"></div>
+    </div>
+    <div class="main-wrapper">
+        <div class="header">
+            <div class="instructions"><div id="wakeLockStatus"></div></div>
+        </div>
+        <div class="main-tab-navigation">
+            <button class="main-tab-button active" data-main-tab="main-timer">Main Timer</button>
+            <button class="main-tab-button" data-main-tab="settings">Settings</button>
+        </div>
+        <div class="top-stats">
+            <div class="baseline-display" id="baselineDisplay">
+                <span class="baseline-label">Avg vs Baseline:</span>
+                <div class="baseline-value" id="baselineValue">
+                    <div class="baseline-trend-indicator"><div class="baseline-trend-neutral"></div></div>
+                    <span class="baseline-time neutral-color">+00:00.00</span>
+                </div>
+            </div>
+            <div class="running-display" id="runningDisplay">
+                <span class="running-label">Cumulative vs Expected:</span>
+                <div class="running-value" id="runningValue">
+                    <div class="running-trend-indicator"><div class="running-trend-neutral"></div></div>
+                    <span class="running-time neutral-color">+00:00:00.00</span>
+                </div>
+            </div>
+        </div>
+        <div class="main-tab-content active" id="main-timer">
+            <div class="main-content">
+                <div class="timer-display">
+                    <div id="currentLapDisplay">Press Start/Lap</div>
+                    <div id="currentLapTime">00:00.00</div>
+                    <div id="totalTime">Total: 00:00:00.00</div>
+                    <div class="stats-container" id="statsContainer">
+                        <div class="stat-item"><span class="stat-label">Fastest:</span><span class="stat-value" id="fastestStat">--:--.--</span></div>
+                        <div class="stat-item"><span class="stat-label">Slowest:</span><span class="stat-value" id="slowestStat">--:--.--</span></div>
+                        <div class="stat-item"><span class="stat-label">Average:</span><span class="stat-value" id="averageStat">--:--.--</span><span id="averageTrend"></span></div>
+                        <div class="stat-item"><span class="stat-label">Range:</span><span class="stat-value" id="rangeStat">--:--.--</span></div>
+                    </div>
+                    <div class="breathing-timer-main" id="metronomeContainer">
+                        <div class="rm-app" id="rmApp">
+                            <div class="rm-header">
+                                <div class="rm-title-group">
+                                    <span class="rm-title">🧘 Reggae Metronome</span>
+                                    <span class="rm-version" id="rmVersionBadge">v2.5</span>
+                                </div>
+                                <button class="rm-gear" id="rmOpenSettings">⚙️</button>
+                            </div>
+                            <div class="rm-backdrop" id="rmBackdrop"></div>
+                            <div class="rm-settings-overlay" id="rmSettingsOverlay">
+                                <button class="rm-close" id="rmCloseSettings">✕</button>
+                                <h2>⚙️ Settings</h2>
+                                <div class="rm-setting-row">
+                                    <label>🔔 Completion alert (sound + vibration)</label>
+                                    <div class="rm-toggle-row">
+                                        <label><input type="checkbox" id="rmCompletionAlertToggle" checked> ✅ Enable completion alert</label>
+                                    </div>
+                                </div>
+                                <div class="rm-setting-row">
+                                    <label>🎵 Completion sound</label>
+                                    <input type="file" id="rmAudioUpload" accept="audio/*">
+                                    <div class="rm-help" id="rmAudioFileName">No custom sound — using default beep</div>
+                                </div>
+                                <div class="rm-setting-row">
+                                    <label>🔔 Teal flash sound</label>
+                                    <input type="file" id="rmTealSoundUpload" accept="audio/*">
+                                    <div class="rm-help" id="rmTealSoundFileName">No custom sound — using default triangle/bell</div>
+                                </div>
+                                <div class="rm-setting-row">
+                                    <label>🎧 Background chanting audio</label>
+                                    <input type="file" id="rmBgAudioUpload" accept="audio/*">
+                                    <div class="rm-help" id="rmBgAudioStatus">No background audio selected</div>
+                                </div>
+                                <div class="rm-setting-row">
+                                    <label>🔊 Volume controls</label>
+                                    <div class="rm-help">🎧 Chanting <input type="range" id="rmBgVolumeSlider" min="0" max="100" value="70" style="width:60%"> <span id="rmBgVolumeLabel">70%</span></div>
+                                    <div class="rm-help" style="margin-top:0.5rem">🎵 Metronome <input type="range" id="rmMetroVolumeSlider" min="0" max="100" value="50" style="width:60%"> <span id="rmMetroVolumeLabel">50%</span></div>
+                                </div>
+                                <div class="rm-setting-row">
+                                    <label>🔄 Loop background audio</label>
+                                    <div class="rm-toggle-row">
+                                        <label><input type="checkbox" id="rmBgLoopToggle" checked> 🔁 Loop ON</label>
+                                    </div>
+                                </div>
+                                <div class="rm-setting-row">
+                                    <label>🎹 Chord progression</label>
+                                    <div class="rm-chord-options">
+                                        <label><input type="radio" name="rmChordSet" value="C-Dm" checked> C / Dm</label>
+                                        <label><input type="radio" name="rmChordSet" value="Ab-Db"> A♭ / D♭</label>
+                                        <label><input type="radio" name="rmChordSet" value="D-Em"> D / Em</label>
+                                        <label><input type="radio" name="rmChordSet" value="G-Am"> G / Am</label>
+                                        <label><input type="radio" name="rmChordSet" value="Fm7-Bb7"> Fm7 / Bb7</label>
+                                        <label><input type="radio" name="rmChordSet" value="Ab-Bbm"> A♭ / B♭m</label>
+                                    </div>
+                                </div>
+                                <div class="rm-setting-row">
+                                    <label>📳 Vibration pattern</label>
+                                    <select id="rmVibrationPattern">
+                                        <option value="single">Single short (500ms)</option>
+                                        <option value="triple" selected>✨ Triple burst</option>
+                                        <option value="max">Maximum (2s)</option>
+                                    </select>
+                                </div>
+                                <hr>
+                                <div class="rm-note">
+                                    ✨ Mantra: 1→6s | 2→10s | ... | 20→82s<br>
+                                    🎵 Reggae: 2 beats Chord 1 → 2 beats Chord 2 @ 60 BPM<br>
+                                    🟠 Orange flash + snare every 4s<br>
+                                    🔵 Teal flash at 2s remaining<br>
+                                    🟣 Purple flash + alert at end of each ROUND (baseline)<br>
+                                    📿 Tally is MANUAL<br>
+                                    <strong>v2.5 — G/Am lowered to match A♭</strong>
+                                </div>
+                            </div>
+                            <div class="rm-mode-selector">
+                                <button class="rm-mode-btn active" data-rm-mode="timer">⏱️ Timer</button>
+                                <button class="rm-mode-btn" data-rm-mode="loop-flash">🔄 Loop+Flash</button>
+                                <button class="rm-mode-btn" data-rm-mode="loop-only">🎵 Loop Only</button>
+                                <button class="rm-mode-btn" data-rm-mode="one-shot">⚡ One-Shot</button>
+                            </div>
+                            <div class="rm-circular-wrapper">
+                                <div class="rm-progress-ring">
+                                    <canvas id="rmProgressCanvas" width="400" height="400"></canvas>
+                                    <div class="rm-inner-flash" id="rmInnerFlash"></div>
+                                    <div class="rm-center-info">
+                                        <div class="rm-big-seconds" id="rmSecondsDisplay">30</div>
+                                        <div class="rm-mantra-label" id="rmCenterLabel">seconds</div>
+                                        <div class="rm-round-info" id="rmRoundInfo">Round: 0% (0:00.00 / 7:42.00)</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rm-bg-audio-bar" id="rmBgAudioBar">
+                                <div class="rm-bg-audio-controls">
+                                    <button class="rm-bg-audio-btn" id="rmBgPlayBtn">▶ Play</button>
+                                    <button class="rm-bg-audio-btn" id="rmBgStopBtn">⏹ Stop</button>
+                                </div>
+                                <span class="rm-bg-audio-info" id="rmBgAudioName">No audio loaded</span>
+                                <div class="rm-bg-audio-right">
+                                    <div class="rm-bg-volume-control">
+                                        <input type="range" id="rmBgVolumeSliderMain" min="0" max="100" value="70">
+                                        <span id="rmBgVolumeLabelMain">70%</span>
+                                    </div>
+                                    <span class="rm-bg-loop-badge" id="rmBgLoopBadge">🔁 Loop ON</span>
+                                </div>
+                            </div>
+                            <div class="rm-swing-control">
+                                <label>🎶 Swing</label>
+                                <input type="range" id="rmSwingSlider" min="0" max="100" value="14">
+                                <span id="rmSwingValue">14%</span>
+                            </div>
+                            <div class="rm-tally-section">
+                                <span class="rm-tally-label">📿 Rounds chanted</span>
+                                <div class="rm-tally-controls">
+                                    <button class="rm-tally-btn" id="rmTallyDecrement">−</button>
+                                    <span class="rm-tally-count" id="rmTallyCount">0</span>
+                                    <button class="rm-tally-btn" id="rmTallyIncrement">+</button>
+                                    <button class="rm-tally-btn rm-reset" id="rmTallyReset">↺ Reset</button>
+                                </div>
+                            </div>
+                            <div class="rm-mantra-wheel" id="rmMantraWheel">
+                                <span class="rm-wheel-label">🔢 Mantra count</span>
+                                <div class="rm-wheel-control">
+                                    <button class="rm-wheel-btn" id="rmDecrementMantra">–</button>
+                                    <span class="rm-mantra-value" id="rmMantraCount">7</span>
+                                    <button class="rm-wheel-btn" id="rmIncrementMantra">+</button>
+                                </div>
+                                <span class="rm-seconds-hint" id="rmSecondsHint">= 30 sec</span>
+                                <span class="rm-pending-badge" id="rmPendingBadge" style="display:none;">next cycle ⏳</span>
+                            </div>
+                            <div class="rm-metronome-control">
+                                <span class="rm-metronome-label">🎵 Reggae Metronome <small>(2|2 @ 60 BPM)</small></span>
+                                <button class="rm-metronome-toggle active" id="rmMetronomeToggleBtn">🎵 ON</button>
+                            </div>
+                            <div class="rm-action-buttons" id="rmTimerButtons">
+                                <button class="rm-btn-start" id="rmStartBtn">▶ Start</button>
+                                <button class="rm-btn-stop" id="rmStopBtn">⏹ Stop</button>
+                            </div>
+                            <div class="rm-action-buttons" id="rmOneShotButtons" style="display:none;">
+                                <button class="rm-btn-one-shot" id="rmOneShotBtn">⚡ Run Once</button>
+                                <button class="rm-btn-stop" id="rmOneShotStopBtn">⏹ Stop</button>
+                            </div>
+                            <div class="rm-status-msg" id="rmStatusMsg">
+                                <span class="rm-status-text">✅ Ready. Press Start</span>
+                                <div class="rm-status-row">
+                                    <span class="rm-mute-badge" id="rmMuteBadge">🔊 Sound ON</span>
+                                    <span class="rm-wake-badge" id="rmWakeBadge">🔆 Screen awake</span>
+                                </div>
+                            </div>
+                            <div class="rm-footer">v2.5 | ↑↓ mantra · ←→ rounds | Space = Start/Lap</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="cumulativeChart"></canvas>
+                </div>
+                <div class="laps-scroll-container">
+                    <div class="lap-container" id="laps"></div>
+                </div>
+            </div>
+            <div class="controls">
+                <div class="button-row">
+                    <button id="startLapBtn">Start/Lap</button>
+                    <button id="stopBtn">Stop</button>
+                </div>
+                <div class="button-row">
+                    <button id="resetBtn">Reset</button>
+                    <button id="fullscreenBtn">Fullscreen</button>
+                    <button id="darkModeBtn">Dark Mode</button>
+                </div>
+            </div>
+        </div>
+        <div class="main-tab-content" id="settings">
+            <div class="settings-container">
+                <div class="settings-section">
+                    <h3>Stopwatch Alert Settings</h3>
+                    <div class="settings-row">
+                        <label for="alertSound">Alert Sound:</label>
+                        <input type="file" id="alertSound" accept="audio/*">
+                    </div>
+                    <div class="settings-row">
+                        <label for="alertTime">Alert at:</label>
+                        <div class="time-input-group">
+                            <input type="number" id="alertMinutes" class="time-input" min="0" value="7"><span class="time-label">min</span>
+                            <input type="number" id="alertSeconds" class="time-input" min="0" max="59" value="8"><span class="time-label">sec</span>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <label for="chartLineTime">Chart Baseline:</label>
+                        <div class="time-input-group">
+                            <input type="number" id="chartLineMinutes" class="time-input" min="0" value="7"><span class="time-label">min</span>
+                            <input type="number" id="chartLineSeconds" class="time-input" min="0" max="59" value="42"><span class="time-label">sec</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section audio-looper-section">
+                    <h3>Background Audio Looper</h3>
+                    <div class="audio-looper-controls">
+                        <div class="settings-row">
+                            <label for="audioFileInput">Audio File:</label>
+                            <input type="file" id="audioFileInput" accept="audio/*">
+                        </div>
+                        <div class="audio-looper-buttons">
+                            <button id="toggleLoopBtn">Loop: OFF</button>
+                            <button id="stopAudioBtn">Stop</button>
+                        </div>
+                    </div>
+                    <audio id="audioPlayer" controls style="width: 100%; margin-top: 10px;"></audio>
+                    <div id="audioLooperStatus" style="text-align: center; margin-top: 8px; color: var(--chart-text); font-style: italic; font-size: 0.9em;">Select an audio file to begin</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script>
+        // ========== LAP TIMER ==========
+        Chart.register(ChartDataLabels);
+        let startTime, lastLapTime, isRunning = false, lapCount = 0, timerInterval, wakeLock = null, cumulativeChart;
+        let lapTimes = [], cumulativeData = [], darkMode = false, isMobile = false;
+        let previousAverage = null, previousFastest = null, previousSlowest = null;
+        let alertAudio = null, alertTime = 7 * 60 * 1000 + 8 * 1000, alertTriggeredForLap = false;
+        let horizontalLineTime = 7 * 60 * 1000 + 42 * 1000;
+        let roundStartTime = null, roundProgressInterval = null, isRoundInProgress = false;
+        // Shared handle to metronome round circle + info (set by metronome IIFE)
+        window.__rmRoundCircle = null;
+        window.__rmRoundInfo = null;
+        window.__rmRoundNotify = null; // function(durationMs) called at end of round
+        const startLapBtn = document.getElementById('startLapBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const darkModeBtn = document.getElementById('darkModeBtn');
+        const wakeLockStatus = document.getElementById('wakeLockStatus');
+        const currentLapDisplay = document.getElementById('currentLapDisplay');
+        const currentLapTime = document.getElementById('currentLapTime');
+        const totalTime = document.getElementById('totalTime');
+        const lapsContainer = document.getElementById('laps');
+        const cumulativeChartCanvas = document.getElementById('cumulativeChart');
+        const beadContainer = document.getElementById('beadContainer');
+        const body = document.body;
+        const averageTrendElement = document.getElementById('averageTrend');
+        const baselineValue = document.getElementById('baselineValue');
+        const runningValue = document.getElementById('runningValue');
+        const mainTabButtons = document.querySelectorAll('.main-tab-button');
+        const mainTabContents = document.querySelectorAll('.main-tab-content');
+        const alertSoundInput = document.getElementById('alertSound');
+        const alertMinutesInput = document.getElementById('alertMinutes');
+        const alertSecondsInput = document.getElementById('alertSeconds');
+        const chartLineMinutesInput = document.getElementById('chartLineMinutes');
+        const chartLineSecondsInput = document.getElementById('chartLineSeconds');
+        const audioFileInput = document.getElementById('audioFileInput');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const toggleLoopBtn = document.getElementById('toggleLoopBtn');
+        const stopAudioBtn = document.getElementById('stopAudioBtn');
+        const audioLooperStatus = document.getElementById('audioLooperStatus');
+        function formatTimeHHMMSS(ms) {
+            const t = ms / 1000;
+            return `${Math.floor(t/3600).toString().padStart(2,'0')}:${Math.floor((t%3600)/60).toString().padStart(2,'0')}:${Math.floor(t%60).toString().padStart(2,'0')}.${Math.floor((ms%1000)/10).toString().padStart(2,'0')}`;
+        }
+        function formatTime(ms) {
+            const t = ms / 1000;
+            return `${Math.floor(t/60).toString().padStart(2,'0')}:${Math.floor(t%60).toString().padStart(2,'0')}.${Math.floor((ms%1000)/10).toString().padStart(2,'0')}`;
+        }
+        function formatCumulative(ms) {
+            const abs = Math.abs(ms), sign = ms < 0 ? '+' : '-', t = abs / 1000;
+            const h = Math.floor(t/3600), m = Math.floor((t%3600)/60), s = Math.floor(t%60), hh = Math.floor((abs%1000)/10);
+            return h > 0 ? `${sign}${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${hh.toString().padStart(2,'0')}` : `${sign}${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${hh.toString().padStart(2,'0')}`;
+        }
+        function formatTimeDifference(ms) {
+            const abs = Math.abs(ms), s = abs/1000, hh = Math.round((s%1)*100);
+            if (abs < 1000) return `${ms<0?'-':'+'}0.${hh.toString().padStart(2,'0')}`;
+            return `${ms<0?'-':'+'}${Math.floor(s)}.${hh.toString().padStart(2,'0')}`;
+        }
+        function parseFormattedTime(str) {
+            const p = str.split(/[:.]/); if (p.length !== 3) return 0;
+            return (parseInt(p[0])*60 + parseInt(p[1]))*1000 + parseInt(p[2])*10;
+        }
+        function initCumulativeChart() {
+            if (cumulativeChart) cumulativeChart.destroy();
+            const ctx = cumulativeChartCanvas.getContext('2d');
+            const tc = darkMode ? '#e0e0e0' : '#666', gc = darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', zc = darkMode ? '#64B5F6' : '#2196F3';
+            cumulativeChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Cumulative vs Expected', data: [], borderColor: zc, backgroundColor: 'rgba(33,150,243,0.1)', tension: 0.1,
+                    pointBackgroundColor: c => { const v = c.dataset.data[c.dataIndex]; return v < 0 ? '#4CAF50' : (v > 0 ? '#F44336' : '#999'); }, pointRadius: 8, pointHoverRadius: 10, fill: false }] },
+                options: { responsive: true, maintainAspectRatio: false,
+                    layout: { padding: { top: 30, bottom: 20, left: 50, right: 30 } },
+                    plugins: {
+                        legend: { labels: { color: tc } },
+                        tooltip: { callbacks: { label: c => { const v = c.raw; const st = v < 0 ? 'Ahead' : (v > 0 ? 'Behind' : 'On Pace'); return `Round ${c.label}: ${st} ${formatCumulative(v*1000)}`; } } },
+                        datalabels: { align: c => { const v = c.dataset.data[c.dataIndex]; return v < 0 ? 'top' : 'bottom'; }, offset: 10,
+                            color: c => { const v = c.dataset.data[c.dataIndex]; return v < 0 ? '#4CAF50' : (v > 0 ? '#F44336' : '#999'); },
+                            font: { weight: 'bold', size: 11 }, formatter: v => formatCumulative(v*1000) },
+                        annotation: { annotations: { zeroLine: { type: 'line', yMin: 0, yMax: 0, borderColor: zc, borderWidth: 2, borderDash: [5,5],
+                            label: { content: 'On Pace', enabled: true, position: 'right', backgroundColor: zc, color: '#fff', font: { size: 12, weight: 'bold' } } } } }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, reverse: true, title: { display: true, text: 'Time Ahead/Behind', color: tc },
+                            ticks: { color: tc, callback: v => { const a = Math.abs(v); if (a >= 3600) return `${v<0?'+':'-'}${Math.floor(a/3600)}h ${Math.floor((a%3600)/60)}m`; if (a >= 60) return `${v<0?'+':'-'}${Math.floor(a/60)}m ${Math.floor(a%60)}s`; return `${v<0?'+':'-'}${a.toFixed(1)}s`; } },
+                            grid: { color: gc } },
+                        x: { title: { display: true, text: 'Round Number', color: tc }, ticks: { color: tc }, grid: { color: gc } }
+                    } }
+            });
+        }
+        function initializeBeads() {
+            beadContainer.innerHTML = '';
+            for (let i = 0; i < 16; i++) { const b = document.createElement('div'); b.className = 'bead'; b.id = `bead-${i+1}`; b.textContent = i+1; beadContainer.appendChild(b); }
+            const sp = document.createElement('div'); sp.className = 'bead spacer'; sp.textContent = '⸰'; beadContainer.appendChild(sp);
+            for (let i = 0; i < 4; i++) { const b = document.createElement('div'); b.className = 'bead'; b.id = `overflow-bead-${i+1}`; beadContainer.appendChild(b); }
+        }
+        function updateBeads() {
+            const total = lapCount - 1; if (total <= 0) return;
+            const cs = Math.floor((total-1)/16)%4, ci = total%16 || 16;
+            if (ci === 1) for (let i=1;i<=16;i++){ const b = document.getElementById(`bead-${i}`); if (b) b.className = 'bead'; }
+            for (let i=1;i<=ci;i++){ const b = document.getElementById(`bead-${i}`); if (!b) continue; b.className = i<=4?'bead green':i<=8?'bead yellow':i<=12?'bead red':'bead black'; }
+            for (let i=0;i<cs;i++){ const b = document.getElementById(`overflow-bead-${i+1}`); if (b) b.className = i===0?'bead green':i===1?'bead yellow':i===2?'bead red':'bead black'; }
+            if (total > 0 && total%64 === 0) initializeBeads();
+        }
+        function updateRunningDisplay() {
+            if (!isRunning || lapTimes.length === 0) { runningValue.innerHTML = `<div class="running-trend-indicator"><div class="running-trend-neutral"></div></div><span class="running-time neutral-color">+00:00:00.00</span>`; return; }
+            const diff = (Date.now()-startTime) - (lapCount-1)*horizontalLineTime;
+            const ti = diff < 0 ? '<div class="running-trend-up"></div>' : (diff > 0 ? '<div class="running-trend-down"></div>' : '<div class="running-trend-neutral"></div>');
+            const tc = diff < 0 ? 'faster-color' : (diff > 0 ? 'slower-color' : 'neutral-color');
+            runningValue.innerHTML = `<div class="running-trend-indicator">${ti}</div><span class="running-time ${tc}">${formatCumulative(diff)}</span>`;
+        }
+        function updateBaselineDisplay() {
+            if (lapTimes.length === 0) { baselineValue.innerHTML = `<div class="baseline-trend-indicator"><div class="baseline-trend-neutral"></div></div><span class="baseline-time neutral-color">+00:00.00</span>`; return; }
+            const avg = lapTimes.reduce((s,t)=>s+t,0)/lapTimes.length;
+            const diff = avg - horizontalLineTime;
+            const ti = diff < 0 ? '<div class="baseline-trend-up"></div>' : (diff > 0 ? '<div class="baseline-trend-down"></div>' : '<div class="baseline-trend-neutral"></div>');
+            const tc = diff < 0 ? 'faster-color' : (diff > 0 ? 'slower-color' : 'neutral-color');
+            baselineValue.innerHTML = `<div class="baseline-trend-indicator">${ti}</div><span class="baseline-time ${tc}">${formatCumulative(diff)}</span>`;
+        }
+        function calculateStatistics() {
+            if (lapTimes.length === 0) {
+                document.getElementById('fastestStat').textContent = '--:--.--';
+                document.getElementById('slowestStat').textContent = '--:--.--';
+                document.getElementById('averageStat').textContent = '--:--.--';
+                document.getElementById('rangeStat').textContent = '--:--.--';
+                averageTrendElement.innerHTML = '';
+                return { fastest: 0, slowest: 0, average: 0 };
+            }
+            const fastest = Math.min(...lapTimes), slowest = Math.max(...lapTimes);
+            const average = lapTimes.reduce((s,t)=>s+t,0)/lapTimes.length;
+            document.getElementById('fastestStat').textContent = formatTime(fastest);
+            document.getElementById('slowestStat').textContent = formatTime(slowest);
+            document.getElementById('averageStat').textContent = formatTime(average);
+            document.getElementById('rangeStat').textContent = formatTime(slowest-fastest);
+            let html = '';
+            if (previousAverage !== null && lapTimes.length > 1) {
+                const t = average - previousAverage;
+                if (t < 0) html = `<span class="trend-indicator"><div class="trend-up"></div><span class="trend-value">${formatTimeDifference(t)}</span></span>`;
+                else if (t > 0) html = `<span class="trend-indicator"><div class="trend-down"></div><span class="trend-value">${formatTimeDifference(t)}</span></span>`;
+                else html = `<span class="trend-indicator"><div class="trend-neutral"></div></span>`;
+            } else if (lapTimes.length === 1) html = `<span class="trend-indicator"><div class="trend-neutral"></div></span>`;
+            averageTrendElement.innerHTML = html;
+            previousAverage = average; previousFastest = fastest; previousSlowest = slowest;
+            updateBaselineDisplay();
+            return { fastest, slowest, average };
+        }
+        function updateLapHighlighting() {
+            const { fastest, slowest } = calculateStatistics();
+            const lapEls = document.querySelectorAll('.lap');
+            lapEls.forEach(l => l.classList.remove('fastest','slowest'));
+            let fF = false, fS = false;
+            lapEls.forEach(l => {
+                const t = parseFormattedTime(l.querySelector('.lap-time').textContent);
+                if (!fF && Math.abs(t-fastest) <= 1) { l.classList.add('fastest'); fF = true; }
+                if (!fS && Math.abs(t-slowest) <= 1) { l.classList.add('slowest'); fS = true; }
+            });
+        }
+        function addLapToChart(n, diff) {
+            cumulativeChart.data.labels.push(n);
+            cumulativeChart.data.datasets[0].data.push(diff/1000);
+            cumulativeChart.options.scales.y.min = undefined;
+            cumulativeChart.options.scales.y.max = undefined;
+            cumulativeChart.update();
+        }
+        function startTimer() {
+            startTime = Date.now(); lastLapTime = startTime;
+            isRunning = true; lapCount = 1; lapTimes = []; cumulativeData = [];
+            alertTriggeredForLap = false; previousAverage = null; previousFastest = null; previousSlowest = null;
+            currentLapDisplay.textContent = `Lap ${lapCount}`;
+            startLapBtn.textContent = "Lap";
+            stopBtn.style.display = "block"; resetBtn.disabled = true;
+            currentLapTime.textContent = "00:00.00";
+            timerInterval = setInterval(updateTimer, 10);
+            requestWakeLock(); initCumulativeChart(); initializeBeads();
+            lapsContainer.innerHTML = '';
+            startRoundProgress(); updateBaselineDisplay(); updateRunningDisplay();
+        }
+        function updateTimer() {
+            const now = Date.now();
+            currentLapTime.textContent = formatTime(now - lastLapTime);
+            totalTime.textContent = `Total: ${formatTimeHHMMSS(now - startTime)}`;
+            if (alertAudio && (now-lastLapTime) >= alertTime && !alertTriggeredForLap) {
+                alertAudio.currentTime = 0; alertAudio.play().catch(()=>{}); alertTriggeredForLap = true;
+            }
+        }
+        function recordLap() {
+            const now = Date.now(), lapTime = now-lastLapTime, totalElapsed = now-startTime;
+            lapTimes.push(lapTime);
+            const cumulativeDiff = totalElapsed - lapCount*horizontalLineTime;
+            cumulativeData.push(cumulativeDiff);
+            const avgBefore = lapTimes.length > 1 ? lapTimes.slice(0,-1).reduce((s,t)=>s+t,0)/(lapTimes.length-1) : lapTime;
+            let ti = '', tv = '';
+            if (lapTimes.length > 1) {
+                const t = lapTime-avgBefore;
+                if (t < 0) { ti = '<div class="lap-trend-up"></div>'; tv = formatTimeDifference(t); }
+                else if (t > 0) { ti = '<div class="lap-trend-down"></div>'; tv = formatTimeDifference(t); }
+                else ti = '<div class="lap-trend-neutral"></div>';
+            } else ti = '<div class="lap-trend-neutral"></div>';
+            let ei = '', ec = 'neutral-color';
+            if (cumulativeDiff < 0) { ei = '<div class="expected-up"></div>'; ec = 'faster-color'; }
+            else if (cumulativeDiff > 0) { ei = '<div class="expected-down"></div>'; ec = 'slower-color'; }
+            else ei = '<div class="expected-neutral"></div>';
+            const lapEl = document.createElement('div');
+            lapEl.className = 'lap';
+            lapEl.innerHTML = `<div class="lap-info"><span class="lap-number">Lap ${lapCount}</span><div class="lap-trend">${ti}${tv?`<span class="lap-trend-value">${tv}</span>`:''}</div></div><div><span class="lap-time">${formatTime(lapTime)}</span><div class="lap-expected"><div class="expected-indicator">${ei}</div><span class="expected-value ${ec}">${formatCumulative(cumulativeDiff)}</span></div><span class="total-time">${formatTimeHHMMSS(totalElapsed)}</span></div>`;
+            lapsContainer.insertBefore(lapEl, lapsContainer.firstChild);
+            addLapToChart(lapCount, cumulativeDiff);
+            calculateStatistics(); updateLapHighlighting();
+            lastLapTime = now; lapCount++;
+            currentLapDisplay.textContent = `Lap ${lapCount}`;
+            currentLapTime.textContent = "00:00.00";
+            alertTriggeredForLap = false; updateBeads();
+            resetRoundProgress(); startRoundProgress();
+            updateBaselineDisplay(); updateRunningDisplay();
+        }
+        function stopTimer() {
+            clearInterval(timerInterval); isRunning = false;
+            currentLapDisplay.textContent = "Stopped";
+            startLapBtn.textContent = "Start/Lap";
+            stopBtn.style.display = "none"; resetBtn.disabled = false;
+            releaseWakeLock(); stopRoundProgress(); updateRunningDisplay();
+        }
+        function resetTimer() {
+            clearInterval(timerInterval); isRunning = false;
+            startTime = null; lastLapTime = null; lapCount = 0;
+            lapTimes = []; cumulativeData = [];
+            alertTriggeredForLap = false; previousAverage = null; previousFastest = null; previousSlowest = null;
+            currentLapDisplay.textContent = "Press Start/Lap";
+            startLapBtn.textContent = "Start/Lap";
+            stopBtn.style.display = "none";
+            currentLapTime.textContent = "00:00.00";
+            totalTime.textContent = "Total: 00:00:00.00";
+            lapsContainer.innerHTML = ''; resetBtn.disabled = false;
+            ['fastestStat','slowestStat','averageStat','rangeStat'].forEach(id => document.getElementById(id).textContent = '--:--.--');
+            averageTrendElement.innerHTML = '';
+            releaseWakeLock(); wakeLockStatus.textContent = "";
+            initCumulativeChart(); initializeBeads();
+            resetRoundProgress(); updateBaselineDisplay(); updateRunningDisplay();
+        }
+        function handleStartLap() { if (!isRunning) startTimer(); else recordLap(); }
+        async function requestWakeLock() {
+            try { if ('wakeLock' in navigator) {
+                wakeLock = await navigator.wakeLock.request('screen');
+                wakeLockStatus.textContent = "Screen will stay awake while timer runs";
+                wakeLock.addEventListener('release', () => { wakeLockStatus.textContent = "Screen wake lock released"; });
+            } } catch (err) { wakeLockStatus.textContent = `Screen wake lock error: ${err.message}`; }
+        }
+        function releaseWakeLock() { if (wakeLock !== null) wakeLock.release().then(() => wakeLock = null); }
+        function startRoundProgress() {
+            if (isRoundInProgress) return;
+            roundStartTime = Date.now(); isRoundInProgress = true;
+            updateRoundProgress();
+            roundProgressInterval = setInterval(updateRoundProgress, 100);
+        }
+        function updateRoundProgress() {
+            if (!isRoundInProgress || !roundStartTime) return;
+            const elapsed = Date.now()-roundStartTime;
+            const progress = Math.min(elapsed/horizontalLineTime, 1);
+            // Update the metronome's outer round circle + info
+            if (window.__rmRoundCircle) {
+                const r = 54, c = 2*Math.PI*r;
+                window.__rmRoundCircle.style.strokeDasharray = `${c} ${c}`;
+                window.__rmRoundCircle.style.strokeDashoffset = c*(1-progress);
+                if (progress > 0.9) window.__rmRoundCircle.style.stroke = '#F44336';
+                else if (progress > 0.7) window.__rmRoundCircle.style.stroke = '#FF9800';
+                else window.__rmRoundCircle.style.stroke = '#2196F3';
+            }
+            if (window.__rmRoundInfo) {
+                window.__rmRoundInfo.textContent = `Round: ${Math.round(progress*100)}% (${formatTime(elapsed)} / ${formatTime(horizontalLineTime)})`;
+            }
+            if (progress >= 1) {
+                // Round complete — notify, flash, reset
+                if (window.__rmRoundNotify) window.__rmRoundNotify(horizontalLineTime);
+                resetRoundProgress();
+                if (isRunning) startRoundProgress();
+            }
+        }
+        function resetRoundProgress() {
+            clearInterval(roundProgressInterval); isRoundInProgress = false; roundStartTime = null;
+            if (window.__rmRoundCircle) {
+                const r = 54, c = 2*Math.PI*r;
+                window.__rmRoundCircle.style.strokeDasharray = `${c} ${c}`;
+                window.__rmRoundCircle.style.strokeDashoffset = `${c}`;
+                window.__rmRoundCircle.style.stroke = '#2196F3';
+            }
+            if (window.__rmRoundInfo) window.__rmRoundInfo.textContent = `Round: 0% (0:00.00 / ${formatTime(horizontalLineTime)})`;
+        }
+        function stopRoundProgress() { clearInterval(roundProgressInterval); isRoundInProgress = false; roundStartTime = null; }
+        let isLoopEnabled = false, backgroundAudio = null, currentAudioFileName = '';
+        function initializeAudioLooper() {
+            audioFileInput.addEventListener('change', e => {
+                const f = e.target.files[0]; if (!f) return;
+                if (backgroundAudio) { backgroundAudio.pause(); URL.revokeObjectURL(backgroundAudio.src); }
+                audioPlayer.src = URL.createObjectURL(f); currentAudioFileName = f.name; backgroundAudio = audioPlayer;
+                updateAudioLooperStatus();
+                audioPlayer.play().catch(() => { updateAudioLooperStatus('Click play button to start'); });
+            });
+            toggleLoopBtn.addEventListener('click', () => {
+                isLoopEnabled = !isLoopEnabled; audioPlayer.loop = isLoopEnabled;
+                toggleLoopBtn.textContent = isLoopEnabled ? 'Loop: ON' : 'Loop: OFF';
+                toggleLoopBtn.classList.toggle('active', isLoopEnabled); updateAudioLooperStatus();
+            });
+            stopAudioBtn.addEventListener('click', () => {
+                audioPlayer.pause(); audioPlayer.currentTime = 0;
+                isLoopEnabled = false; audioPlayer.loop = false;
+                toggleLoopBtn.textContent = 'Loop: OFF'; toggleLoopBtn.classList.remove('active'); updateAudioLooperStatus();
+            });
+            audioPlayer.addEventListener('play', () => updateAudioLooperStatus());
+            audioPlayer.addEventListener('pause', () => updateAudioLooperStatus());
+            audioPlayer.addEventListener('ended', () => updateAudioLooperStatus());
+        }
+        function updateAudioLooperStatus(custom) {
+            if (custom) { audioLooperStatus.textContent = custom; return; }
+            if (!currentAudioFileName) { audioLooperStatus.textContent = 'Select an audio file to begin'; return; }
+            const isPlaying = !audioPlayer.paused && !audioPlayer.ended;
+            const fn = currentAudioFileName.length > 25 ? currentAudioFileName.substring(0,22)+'...' : currentAudioFileName;
+            let s = fn;
+            if (isPlaying) { s += ' ▶'; if (isLoopEnabled) s += ' 🔄'; } else s += ' ⏸';
+            audioLooperStatus.textContent = s;
+        }
+        function initializeMainTabs() {
+            mainTabButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-main-tab');
+                    mainTabButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    mainTabContents.forEach(c => { c.classList.remove('active'); if (c.id === id) c.classList.add('active'); });
+                });
+            });
+        }
+        function loadAlertAudio(file) {
+            if (alertAudio) { alertAudio.pause(); URL.revokeObjectURL(alertAudio.src); }
+            alertAudio = new Audio(URL.createObjectURL(file)); alertAudio.load();
+        }
+        function updateAlertTime() {
+            alertTime = ((parseInt(alertMinutesInput.value)||0)*60 + (parseInt(alertSecondsInput.value)||0))*1000;
+            alertTriggeredForLap = false;
+        }
+        function updateHorizontalLineTime() {
+            horizontalLineTime = ((parseInt(chartLineMinutesInput.value)||0)*60 + (parseInt(chartLineSecondsInput.value)||0))*1000;
+            if (window.__rmRoundInfo) window.__rmRoundInfo.textContent = `Round: 0% (0:00.00 / ${formatTime(horizontalLineTime)})`;
+            updateBaselineDisplay(); updateRunningDisplay();
+        }
+        function handleKeyDown(event) {
+            if (event.key === ' ' && !isMobile) { event.preventDefault(); event.stopPropagation(); if (!event.repeat) handleStartLap(); }
+            else if (event.key === 'Enter') { if (isRunning) stopTimer(); }
+        }
+        function toggleDarkMode() {
+            darkMode = !darkMode;
+            if (darkMode) { body.classList.add('dark-mode'); darkModeBtn.textContent = 'Light Mode'; }
+            else { body.classList.remove('dark-mode'); darkModeBtn.textContent = 'Dark Mode'; }
+            initCumulativeChart();
+            if (lapTimes.length > 0) {
+                for (let i = 0; i < lapTimes.length; i++) {
+                    cumulativeChart.data.labels.push(i+1);
+                    cumulativeChart.data.datasets[0].data.push(cumulativeData[i]/1000);
+                }
+                cumulativeChart.update();
+            }
+            localStorage.setItem('darkMode', darkMode);
+        }
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(err => console.error(err));
+            else document.exitFullscreen();
+        }
+        function checkMobile() { isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent); return isMobile; }
+        function initializeEventListeners() {
+            document.addEventListener('keydown', handleKeyDown);
+            startLapBtn.addEventListener('click', handleStartLap);
+            stopBtn.addEventListener('click', stopTimer);
+            resetBtn.addEventListener('click', resetTimer);
+            fullscreenBtn.addEventListener('click', toggleFullscreen);
+            darkModeBtn.addEventListener('click', toggleDarkMode);
+            initializeMainTabs();
+            alertSoundInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) loadAlertAudio(f); });
+            alertMinutesInput.addEventListener('change', updateAlertTime);
+            alertSecondsInput.addEventListener('change', updateAlertTime);
+            chartLineMinutesInput.addEventListener('change', updateHorizontalLineTime);
+            chartLineSecondsInput.addEventListener('change', updateHorizontalLineTime);
+            document.addEventListener('visibilitychange', async () => {
+                if (wakeLock !== null && document.visibilityState === 'hidden') releaseWakeLock();
+            });
+        }
+        function initialize() {
+            checkMobile();
+            if (localStorage.getItem('darkMode') === 'true') { darkMode = true; body.classList.add('dark-mode'); darkModeBtn.textContent = 'Light Mode'; }
+            initCumulativeChart();
+            initializeBeads();
+            initializeEventListeners();
+            initializeAudioLooper();
+            updateAlertTime();
+            updateHorizontalLineTime();
+            updateBaselineDisplay();
+            updateRunningDisplay();
+        }
+        initialize();
+    </script>
+    <script>
+    (function() {
+        'use strict';
+        const VERSION = 'v2.5';
+        const el = id => document.getElementById(id);
+        el('rmVersionBadge').textContent = VERSION;
+        // DOM
+        const canvas = el('rmProgressCanvas');
+        const ctx = canvas.getContext('2d');
+        const secondsDisplay = el('rmSecondsDisplay');
+        const centerLabel = el('rmCenterLabel');
+        const mantraCountSpan = el('rmMantraCount');
+        const secondsHint = el('rmSecondsHint');
+        const startBtn = el('rmStartBtn');
+        const stopBtn = el('rmStopBtn');
+        const oneShotBtn = el('rmOneShotBtn');
+        const oneShotStopBtn = el('rmOneShotStopBtn');
+        const statusMsgText = document.querySelector('#rmStatusMsg .rm-status-text');
+        const wakeBadge = el('rmWakeBadge');
+        const muteBadge = el('rmMuteBadge');
+        const decrementBtn = el('rmDecrementMantra');
+        const incrementBtn = el('rmIncrementMantra');
+        const audioUpload = el('rmAudioUpload');
+        const audioFileNameSpan = el('rmAudioFileName');
+        const tealSoundUpload = el('rmTealSoundUpload');
+        const tealSoundFileName = el('rmTealSoundFileName');
+        const pendingBadge = el('rmPendingBadge');
+        const vibrationPatternSelect = el('rmVibrationPattern');
+        const metronomeToggleBtn = el('rmMetronomeToggleBtn');
+        const innerFlash = el('rmInnerFlash');
+        const swingSlider = el('rmSwingSlider');
+        const swingValue = el('rmSwingValue');
+        const modeBtns = document.querySelectorAll('.rm-mode-btn');
+        const mantraWheel = el('rmMantraWheel');
+        const timerButtons = el('rmTimerButtons');
+        const oneShotButtons = el('rmOneShotButtons');
+        const completionAlertToggle = el('rmCompletionAlertToggle');
+        const tallyCountDisplay = el('rmTallyCount');
+        const tallyIncrementBtn = el('rmTallyIncrement');
+        const tallyDecrementBtn = el('rmTallyDecrement');
+        const tallyResetBtn = el('rmTallyReset');
+        const chordRadios = document.querySelectorAll('input[name="rmChordSet"]');
+        const bgAudioUpload = el('rmBgAudioUpload');
+        const bgAudioStatus = el('rmBgAudioStatus');
+        const bgLoopToggle = el('rmBgLoopToggle');
+        const bgAudioBar = el('rmBgAudioBar');
+        const bgPlayBtn = el('rmBgPlayBtn');
+        const bgStopBtn = el('rmBgStopBtn');
+        const bgAudioName = el('rmBgAudioName');
+        const bgLoopBadge = el('rmBgLoopBadge');
+        const bgVolumeSlider = el('rmBgVolumeSlider');
+        const bgVolumeLabel = el('rmBgVolumeLabel');
+        const bgVolumeSliderMain = el('rmBgVolumeSliderMain');
+        const bgVolumeLabelMain = el('rmBgVolumeLabelMain');
+        const metroVolumeSlider = el('rmMetroVolumeSlider');
+        const metroVolumeLabel = el('rmMetroVolumeLabel');
+        const settingsOverlay = el('rmSettingsOverlay');
+        const backdrop = el('rmBackdrop');
+        const openSettingsBtn = el('rmOpenSettings');
+        const closeSettingsBtn = el('rmCloseSettings');
+        const roundInfo = el('rmRoundInfo');
+        // Wire the round circle + info + notify back to lap-timer globals
+        // The round circle is drawn on the SAME canvas as the mantra progress but as an outer ring.
+        // We'll create an overlay SVG ring inside the progress ring container for the round.
+        const ringContainer = canvas.parentElement;
+        const roundSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        roundSvg.setAttribute('viewBox', '0 0 120 120');
+        roundSvg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;';
+        const roundBgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        roundBgCircle.setAttribute('cx','60'); roundBgCircle.setAttribute('cy','60'); roundBgCircle.setAttribute('r','54');
+        roundBgCircle.setAttribute('fill','none'); roundBgCircle.setAttribute('stroke','#2c5a7a'); roundBgCircle.setAttribute('stroke-width','6');
+        const roundCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        roundCircle.setAttribute('cx','60'); roundCircle.setAttribute('cy','60'); roundCircle.setAttribute('r','54');
+        roundCircle.setAttribute('fill','none'); roundCircle.setAttribute('stroke','#2196F3'); roundCircle.setAttribute('stroke-width','6');
+        roundCircle.setAttribute('stroke-linecap','round');
+        roundCircle.style.transform = 'rotate(-90deg)';
+        roundCircle.style.transformOrigin = '60px 60px';
+        roundSvg.appendChild(roundBgCircle); roundSvg.appendChild(roundCircle);
+        ringContainer.appendChild(roundSvg);
+        window.__rmRoundCircle = roundCircle;
+        window.__rmRoundInfo = roundInfo;
+        // Notify function called by lap timer at end of each round
+        window.__rmRoundNotify = function(durationMs) {
+            // Purple flash + completion alert (sound/vibration) honoring the completion toggle
+            triggerInnerFlash('teal', 800);
+            if (completionAlertEnabled) { playCompletionSound(); vibratePhone(); }
+            let mins = Math.round(durationMs/60000);
+            statusMsgText.innerText = `🏁 Round complete! (${mins} min)`;
+            setTimeout(() => { if (isActive) statusMsgText.innerText = "🧘 Breathing..."; }, 2500);
+        };
+        function openSettings() { settingsOverlay.classList.add('open'); backdrop.classList.add('open'); }
+        function closeSettings() { settingsOverlay.classList.remove('open'); backdrop.classList.remove('open'); }
+        openSettingsBtn.addEventListener('click', openSettings);
+        closeSettingsBtn.addEventListener('click', closeSettings);
+        backdrop.addEventListener('click', closeSettings);
+        let completionAlertEnabled = localStorage.getItem('rmCompletionAlertEnabled') !== 'false';
+        completionAlertToggle.checked = completionAlertEnabled;
+        completionAlertToggle.addEventListener('change', () => {
+            completionAlertEnabled = completionAlertToggle.checked;
+            localStorage.setItem('rmCompletionAlertEnabled', String(completionAlertEnabled));
+            statusMsgText.innerText = completionAlertEnabled ? "🔔 Completion alert enabled" : "🔇 Completion alert disabled";
+            setTimeout(() => { if (isActive) statusMsgText.innerText = "🧘 Running..."; }, 1500);
+        });
+        let bgVolume = 0.7, metroVolume = 0.5;
+        function updateBgVolume(v) {
+            bgVolume = v/100;
+            if (backgroundAudio) backgroundAudio.volume = bgVolume;
+            bgVolumeLabel.textContent = Math.round(v)+'%';
+            bgVolumeLabelMain.textContent = Math.round(v)+'%';
+            bgVolumeSliderMain.value = v; bgVolumeSlider.value = v;
+            localStorage.setItem('rmBgVolume', v);
+        }
+        function updateMetroVolume(v) {
+            metroVolume = v/100;
+            metroVolumeLabel.textContent = Math.round(v)+'%';
+            localStorage.setItem('rmMetroVolume', v);
+        }
+        const savedBgVol = localStorage.getItem('rmBgVolume');
+        if (savedBgVol !== null) { bgVolumeSlider.value = savedBgVol; bgVolumeSliderMain.value = savedBgVol; bgVolume = savedBgVol/100; bgVolumeLabel.textContent = Math.round(savedBgVol)+'%'; bgVolumeLabelMain.textContent = Math.round(savedBgVol)+'%'; }
+        const savedMetroVol = localStorage.getItem('rmMetroVolume');
+        if (savedMetroVol !== null) { metroVolumeSlider.value = savedMetroVol; metroVolume = savedMetroVol/100; metroVolumeLabel.textContent = Math.round(savedMetroVol)+'%'; }
+        bgVolumeSlider.addEventListener('input', e => updateBgVolume(parseInt(e.target.value)));
+        bgVolumeSliderMain.addEventListener('input', e => updateBgVolume(parseInt(e.target.value)));
+        metroVolumeSlider.addEventListener('input', e => updateMetroVolume(parseInt(e.target.value)));
+        let swingPercent = 14;
+        swingSlider.addEventListener('input', e => { swingPercent = parseInt(e.target.value); swingValue.textContent = swingPercent+'%'; localStorage.setItem('rmSwingPercent', swingPercent); });
+        const savedSwing = localStorage.getItem('rmSwingPercent');
+        if (savedSwing !== null) { swingPercent = parseInt(savedSwing); swingSlider.value = swingPercent; swingValue.textContent = swingPercent+'%'; }
+        let backgroundAudio = null, isBgPlaying = false;
+        function updateBgUI() {
+            if (backgroundAudio && backgroundAudio.src) {
+                bgAudioBar.classList.add('visible');
+                const fn = backgroundAudio.src.split('/').pop().split('?')[0] || 'audio file';
+                bgAudioName.textContent = fn.length > 20 ? fn.substring(0,18)+'...' : fn;
+                bgPlayBtn.textContent = isBgPlaying ? '⏸ Pause' : '▶ Play';
+                bgPlayBtn.classList.toggle('playing', isBgPlaying);
+                bgLoopBadge.textContent = bgLoopToggle.checked ? '🔁 Loop ON' : '🔁 Loop OFF';
+            } else bgAudioBar.classList.remove('visible');
+        }
+        function loadBackgroundAudio(file) {
+            if (backgroundAudio) { backgroundAudio.pause(); URL.revokeObjectURL(backgroundAudio.src); }
+            backgroundAudio = new Audio(URL.createObjectURL(file));
+            backgroundAudio.loop = bgLoopToggle.checked; backgroundAudio.volume = bgVolume;
+            backgroundAudio.load(); isBgPlaying = false;
+            bgAudioStatus.textContent = `✅ Loaded: ${file.name}`; updateBgUI();
+        }
+        function toggleBgPlay() {
+            if (!backgroundAudio || !backgroundAudio.src) { statusMsgText.innerText = "⚠️ No background audio loaded."; return; }
+            if (isBgPlaying) { backgroundAudio.pause(); isBgPlaying = false; } else { backgroundAudio.play().catch(()=>{}); isBgPlaying = true; }
+            updateBgUI();
+        }
+        function stopBgAudio() { if (backgroundAudio) { backgroundAudio.pause(); backgroundAudio.currentTime = 0; isBgPlaying = false; updateBgUI(); } }
+        bgAudioUpload.addEventListener('change', e => { const f = e.target.files[0]; if (f) loadBackgroundAudio(f); });
+        bgLoopToggle.addEventListener('change', () => { if (backgroundAudio) { backgroundAudio.loop = bgLoopToggle.checked; updateBgUI(); } });
+        bgPlayBtn.addEventListener('click', toggleBgPlay);
+        bgStopBtn.addEventListener('click', stopBgAudio);
+        let tealAudio = null;
+        tealSoundUpload.addEventListener('change', e => {
+            const f = e.target.files[0]; if (!f) return;
+            if (tealAudio) { tealAudio.pause(); URL.revokeObjectURL(tealAudio.src); }
+            tealAudio = new Audio(URL.createObjectURL(f)); tealAudio.load();
+            tealSoundFileName.textContent = `✅ Loaded: ${f.name}`;
+        });
+        const TALLY_KEY = 'rmTallyCount';
+        let tallyCount = parseInt(localStorage.getItem(TALLY_KEY) || '0', 10);
+        function updateTallyDisplay() { tallyCountDisplay.textContent = tallyCount; localStorage.setItem(TALLY_KEY, String(tallyCount)); }
+        tallyCountDisplay.textContent = tallyCount;
+        tallyIncrementBtn.addEventListener('click', () => { tallyCount++; updateTallyDisplay(); });
+        tallyDecrementBtn.addEventListener('click', () => { if (tallyCount > 0) { tallyCount--; updateTallyDisplay(); } });
+        tallyResetBtn.addEventListener('click', () => { if (confirm('Reset tally counter to 0?')) { tallyCount = 0; updateTallyDisplay(); } });
+        let currentChordSet = 'C-Dm';
+        const CHORD_FREQS = {
+            'C': [261.63, 329.63, 392.00], 'Dm': [293.66, 349.23, 440.00],
+            'Ab': [207.65, 261.63, 311.13], 'Db': [277.18, 349.23, 415.30],
+            'D': [293.66, 369.99, 440.00], 'Em': [329.63, 392.00, 493.88],
+            'G': [196.00, 246.94, 293.66], 'Am': [220.00, 261.63, 329.63],
+            'Fm7': [349.23, 415.30, 523.25, 622.25], 'Bb7': [233.08, 293.66, 349.23, 415.30],
+            'Abmaj': [207.65, 261.63, 311.13], 'Bbm': [233.08, 277.18, 349.23]
+        };
+        const CHORD_PAIRS = {
+            'C-Dm': ['C','Dm'], 'Ab-Db': ['Ab','Db'], 'D-Em': ['D','Em'],
+            'G-Am': ['G','Am'], 'Fm7-Bb7': ['Fm7','Bb7'], 'Ab-Bbm': ['Abmaj','Bbm']
+        };
+        function getChordFrequencies(t) { return CHORD_FREQS[t] || [261.63,329.63,392.00]; }
+        function getChordPair() { return CHORD_PAIRS[currentChordSet] || ['C','Dm']; }
+        chordRadios.forEach(r => {
+            r.addEventListener('change', () => {
+                if (r.checked) {
+                    currentChordSet = r.value;
+                    if (metronomeEnabled && isMetronomeRunning) { stopMetronome(); startMetronome(); }
+                    if (loopMetronomeRunning) { stopLoopMetronome(); startLoopMetronome(); }
+                }
+            });
+        });
+        function playPianoChord(audioCtx, chordType, startTime, volume) {
+            if (!audioCtx) return;
+            const now = startTime || audioCtx.currentTime;
+            const vol = volume !== undefined ? volume : metroVolume;
+            const freqs = getChordFrequencies(chordType);
+            const masterGain = audioCtx.createGain();
+            masterGain.connect(audioCtx.destination);
+            masterGain.gain.setValueAtTime(0, now);
+            masterGain.gain.linearRampToValueAtTime(0.25*vol, now+0.02);
+            masterGain.gain.exponentialRampToValueAtTime(0.08*vol, now+0.3);
+            masterGain.gain.exponentialRampToValueAtTime(0.001*vol, now+1.8);
+            freqs.forEach(freq => {
+                const o1 = audioCtx.createOscillator(); o1.type='sine'; o1.frequency.value=freq;
+                const g1 = audioCtx.createGain(); g1.gain.value=0.6; o1.connect(g1); g1.connect(masterGain);
+                o1.start(now); o1.stop(now+1.8);
+                const o2 = audioCtx.createOscillator(); o2.type='sine'; o2.frequency.value=freq*2;
+                const g2 = audioCtx.createGain(); g2.gain.value=0.15; o2.connect(g2); g2.connect(masterGain);
+                o2.start(now); o2.stop(now+1.2);
+                const o3 = audioCtx.createOscillator(); o3.type='triangle'; o3.frequency.value=freq*3;
+                const g3 = audioCtx.createGain(); g3.gain.value=0.06; o3.connect(g3); g3.connect(masterGain);
+                o3.start(now); o3.stop(now+0.8);
+            });
+        }
+        function getVibrationPattern() {
+            const p = vibrationPatternSelect.value;
+            if (p === 'single') return [500];
+            if (p === 'triple') return [200,100,200,100,200];
+            if (p === 'max') return [2000];
+            return [200,100,200,100,200];
+        }
+        let wakeLock = null;
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeBadge.style.display = 'inline-block';
+                    wakeBadge.textContent = '🔆 Screen awake';
+                    wakeBadge.style.background = '#2e6b3e';
+                    document.addEventListener('visibilitychange', async () => {
+                        if (wakeLock !== null && document.visibilityState === 'visible') {
+                            try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+                        }
+                    });
+                } catch (e) { wakeBadge.textContent = '⚠️ Wake Lock failed'; wakeBadge.style.background = '#6b2e2e'; }
+            } else { wakeBadge.textContent = '⚠️ Unsupported'; }
+        }
+        async function releaseWakeLock() { if (wakeLock !== null) { try { await wakeLock.release(); wakeLock = null; wakeBadge.style.display = 'none'; } catch (e) {} } }
+        let flashTimeout = null;
+        function triggerInnerFlash(color, duration = 200) {
+            if (!innerFlash) return;
+            innerFlash.classList.remove('orange','teal','major','minor');
+            void innerFlash.offsetWidth;
+            if (color === 'orange') innerFlash.classList.add('orange');
+            if (color === 'teal') innerFlash.classList.add('teal');
+            if (color === 'major') innerFlash.classList.add('major');
+            if (color === 'minor') innerFlash.classList.add('minor');
+            innerFlash.style.opacity = '0.95';
+            if (flashTimeout) clearTimeout(flashTimeout);
+            flashTimeout = setTimeout(() => { innerFlash.style.opacity = '0'; innerFlash.classList.remove('orange','teal','major','minor'); }, duration);
+        }
+        let percussionCtx = null;
+        function getAudioContext() {
+            if (!percussionCtx) percussionCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (percussionCtx.state === 'suspended') percussionCtx.resume();
+            return percussionCtx;
+        }
+        function playSnare() {
+            try {
+                const ac = getAudioContext();
+                const bs = ac.sampleRate * 0.08;
+                const buffer = ac.createBuffer(1, bs, ac.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i=0;i<bs;i++) data[i] = (Math.random()*2-1)*Math.exp(-i/(bs*0.3));
+                const src = ac.createBufferSource(); src.buffer = buffer;
+                const g = ac.createGain();
+                g.gain.setValueAtTime(0.5*metroVolume, ac.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime+0.08);
+                src.connect(g); g.connect(ac.destination); src.start(ac.currentTime);
+            } catch (e) {}
+        }
+        function playTealSound() {
+            if (isMuted) return;
+            if (tealAudio && tealAudio.src) { tealAudio.currentTime = 0; tealAudio.volume = metroVolume; tealAudio.play().catch(()=>{}); return; }
+            try {
+                const ac = getAudioContext(); const now = ac.currentTime;
+                const g = ac.createGain(); g.connect(ac.destination);
+                g.gain.setValueAtTime(0.3*metroVolume, now);
+                g.gain.exponentialRampToValueAtTime(0.001, now+0.8);
+                [1000,1200,1500,800].forEach(f => {
+                    const o = ac.createOscillator(); o.type='sine'; o.frequency.value=f; o.connect(g); o.start(now); o.stop(now+0.4);
+                });
+            } catch (e) {}
+        }
+        let currentMode = 'timer';
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.getAttribute('data-rm-mode');
+                if (mode === currentMode) return;
+                if (isActive) stopTimer();
+                if (oneShotRunning) stopOneShot();
+                stopLoopMetronome(); stopMetronome();
+                isActive = false;
+                currentMode = mode;
+                modeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                updateModeUI();
+            });
+        });
+        function updateModeUI() {
+            innerFlash.style.opacity = '0';
+            innerFlash.classList.remove('orange','teal','major','minor');
+            if (currentMode === 'timer') {
+                mantraWheel.style.display = 'flex';
+                timerButtons.style.display = 'flex';
+                oneShotButtons.style.display = 'none';
+                centerLabel.textContent = 'seconds';
+                statusMsgText.innerText = "✅ Timer mode. Press Start.";
+                currentCycleDuration = getSecondsFromMantra(currentMantra);
+                currentSeconds = currentCycleDuration;
+                secondsDisplay.innerText = currentSeconds;
+                drawProgressCircle(currentSeconds, currentCycleDuration);
+            } else if (currentMode === 'loop-flash') {
+                mantraWheel.style.display = 'none';
+                timerButtons.style.display = 'none';
+                oneShotButtons.style.display = 'flex';
+                oneShotBtn.textContent = '⚡ Run Timer';
+                centerLabel.textContent = 'loop';
+                secondsDisplay.innerText = '🔄';
+                drawStaticCircle();
+                statusMsgText.innerText = "🔄 Loop + Flash. Press 'Run Timer'.";
+                isActive = true;
+                startLoopMetronome(); requestWakeLock();
+            } else if (currentMode === 'loop-only') {
+                mantraWheel.style.display = 'none';
+                timerButtons.style.display = 'none';
+                oneShotButtons.style.display = 'flex';
+                oneShotBtn.textContent = '⚡ Run Timer';
+                centerLabel.textContent = 'loop';
+                secondsDisplay.innerText = '🎵';
+                drawStaticCircle();
+                statusMsgText.innerText = "🎵 Loop Only. Press 'Run Timer'.";
+                isActive = true;
+                startLoopMetronome(); requestWakeLock();
+            } else if (currentMode === 'one-shot') {
+                mantraWheel.style.display = 'flex';
+                timerButtons.style.display = 'none';
+                oneShotButtons.style.display = 'flex';
+                oneShotBtn.textContent = '⚡ Run Once';
+                centerLabel.textContent = 'ready';
+                statusMsgText.innerText = "⚡ One-Shot mode. Press 'Run Once'.";
+                currentCycleDuration = getSecondsFromMantra(currentMantra);
+                currentSeconds = currentCycleDuration;
+                secondsDisplay.innerText = currentSeconds;
+                drawProgressCircle(currentSeconds, currentCycleDuration);
+            }
+        }
+        function drawStaticCircle() {
+            if (!ctx) return;
+            const size = canvas.parentElement.clientWidth;
+            canvas.width = size; canvas.height = size;
+            const c = size/2, r = size/2-8;
+            ctx.clearRect(0,0,size,size);
+            ctx.beginPath(); ctx.arc(c,c,r,0,2*Math.PI); ctx.strokeStyle='#2c5a7a'; ctx.lineWidth=12; ctx.stroke();
+        }
+        let oneShotRunning = false, oneShotInterval = null, oneShotSeconds = 30, oneShotDuration = 30;
+        function startOneShot() {
+            if (oneShotRunning) return;
+            oneShotDuration = getSecondsFromMantra(currentMantra);
+            oneShotSeconds = oneShotDuration; oneShotRunning = true; isActive = true;
+            secondsDisplay.innerText = oneShotSeconds;
+            centerLabel.textContent = 'seconds';
+            drawProgressCircle(oneShotSeconds, oneShotDuration);
+            statusMsgText.innerText = "⚡ One-Shot running...";
+            requestWakeLock();
+            if (currentMode === 'timer' || currentMode === 'one-shot') { if (metronomeEnabled) startMetronome(); }
+            oneShotInterval = setInterval(() => {
+                if (!oneShotRunning) return;
+                if (oneShotSeconds <= 1) {
+                    clearInterval(oneShotInterval); oneShotInterval = null;
+                    if (completionAlertEnabled) { playCompletionSound(); vibratePhone(); }
+                    triggerInnerFlash('teal', 500);
+                    oneShotRunning = false;
+                    if (currentMode === 'loop-flash' || currentMode === 'loop-only') {
+                        secondsDisplay.innerText = '✓'; centerLabel.textContent = 'complete';
+                        statusMsgText.innerText = "✅ Timer complete! Loop continues.";
+                        oneShotDuration = getSecondsFromMantra(currentMantra); oneShotSeconds = oneShotDuration;
+                        drawStaticCircle();
+                    } else {
+                        isActive = false; releaseWakeLock(); stopMetronome();
+                        secondsDisplay.innerText = '✓'; centerLabel.textContent = 'complete';
+                        statusMsgText.innerText = "✅ One-Shot complete!";
+                    }
+                    return;
+                }
+                oneShotSeconds--;
+                secondsDisplay.innerText = oneShotSeconds;
+                drawProgressCircle(oneShotSeconds, oneShotDuration);
+                const elapsed = oneShotDuration - oneShotSeconds;
+                if (currentMode !== 'loop-only' && elapsed % 4 === 0 && oneShotSeconds > 2 && oneShotSeconds !== oneShotDuration && elapsed > 0) {
+                    triggerInnerFlash('orange', 180); playSnare();
+                }
+                if (oneShotSeconds === 2) { triggerInnerFlash('teal', 400); playTealSound(); }
+                if (oneShotSeconds === 1) triggerInnerFlash('teal', 400);
+            }, 1000);
+        }
+        function stopOneShot() {
+            if (oneShotInterval) { clearInterval(oneShotInterval); oneShotInterval = null; }
+            oneShotRunning = false;
+            innerFlash.style.opacity = '0';
+            innerFlash.classList.remove('orange','teal','major','minor');
+            oneShotDuration = getSecondsFromMantra(currentMantra); oneShotSeconds = oneShotDuration;
+            if (currentMode === 'loop-flash' || currentMode === 'loop-only') {
+                secondsDisplay.innerText = currentMode === 'loop-flash' ? '🔄' : '🎵';
+                centerLabel.textContent = 'loop';
+                drawStaticCircle();
+                statusMsgText.innerText = currentMode === 'loop-flash' ? "🔄 Loop + Flash. Press 'Run Timer'." : "🎵 Loop Only. Press 'Run Timer'.";
+            } else {
+                isActive = false; releaseWakeLock(); stopMetronome();
+                secondsDisplay.innerText = oneShotSeconds; centerLabel.textContent = 'ready';
+                drawProgressCircle(oneShotSeconds, oneShotDuration);
+                statusMsgText.innerText = "⚡ One-Shot stopped.";
+            }
+        }
+        let loopMetronomeRunning = false, loopTimeout = null, loopAudioContext = null, loopBeatCounter = 0, loopNextTime = 0;
+        function initLoopAudioContext() {
+            if (!loopAudioContext) loopAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (loopAudioContext.state === 'suspended') loopAudioContext.resume();
+        }
+        function playLoopBeat() {
+            if (!loopMetronomeRunning) return;
+            initLoopAudioContext();
+            const pair = getChordPair();
+            let chordToPlay, triggerFlash = false;
+            if (currentMode === 'loop-flash') {
+                chordToPlay = loopBeatCounter < 2 ? pair[0] : pair[1];
+                if (loopBeatCounter === 3) triggerFlash = true;
+            } else chordToPlay = loopBeatCounter < 2 ? pair[0] : pair[1];
+            playPianoChord(loopAudioContext, chordToPlay);
+            if (triggerFlash) { triggerInnerFlash('orange', 180); playSnare(); }
+            if (currentMode === 'loop-only') {
+                if (loopBeatCounter < 2) triggerInnerFlash('major', 150);
+                else triggerInnerFlash('minor', 150);
+            }
+            loopBeatCounter = (loopBeatCounter + 1) % 4;
+        }
+        function scheduleLoopBeat() {
+            if (!loopMetronomeRunning) return;
+            const now = loopAudioContext ? loopAudioContext.currentTime : 0;
+            if (loopNextTime < now) loopNextTime = now;
+            const bp = loopBeatCounter % 4;
+            let delay = 1.0;
+            if (currentMode === 'loop-flash') {
+                if (bp === 1 || bp === 3) delay = 1.0 + (swingPercent/100)*1.0;
+                else delay = 1.0 - (swingPercent/100)*1.0;
+            }
+            delay = Math.max(0.01, delay);
+            loopNextTime += delay;
+            const td = Math.max(0, (loopNextTime - (loopAudioContext ? loopAudioContext.currentTime : 0))*1000);
+            loopTimeout = setTimeout(() => { if (loopMetronomeRunning) { playLoopBeat(); scheduleLoopBeat(); } }, td);
+        }
+        function startLoopMetronome() {
+            if (loopTimeout) { clearTimeout(loopTimeout); loopTimeout = null; }
+            loopMetronomeRunning = true; loopBeatCounter = 0;
+            initLoopAudioContext();
+            loopNextTime = loopAudioContext.currentTime + 0.1;
+            setTimeout(() => { if (loopMetronomeRunning) { playLoopBeat(); scheduleLoopBeat(); } }, 100);
+        }
+        function stopLoopMetronome() { if (loopTimeout) { clearTimeout(loopTimeout); loopTimeout = null; } loopMetronomeRunning = false; }
+        let metronomeEnabled = true, metronomeTimeout = null, audioContext = null, isMetronomeRunning = false, beatCounter = 0, nextBeatTime = 0;
+        function initAudioContext() {
+            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') audioContext.resume();
+        }
+        function playReggaeBeat() {
+            if (!metronomeEnabled || !isMetronomeRunning) return;
+            initAudioContext();
+            const pair = getChordPair();
+            playPianoChord(audioContext, beatCounter < 2 ? pair[0] : pair[1]);
+            beatCounter = (beatCounter + 1) % 4;
+        }
+        function scheduleNextBeat() {
+            if (!metronomeEnabled || !isMetronomeRunning) return;
+            const now = audioContext ? audioContext.currentTime : 0;
+            if (nextBeatTime < now) nextBeatTime = now;
+            const bp = beatCounter % 4;
+            let delay = 1.0;
+            if (bp === 1 || bp === 3) delay = 1.0 + (swingPercent/100)*1.0;
+            else delay = 1.0 - (swingPercent/100)*1.0;
+            delay = Math.max(0.01, delay);
+            nextBeatTime += delay;
+            const td = Math.max(0, (nextBeatTime - audioContext.currentTime)*1000);
+            metronomeTimeout = setTimeout(() => { if (metronomeEnabled && isMetronomeRunning) { playReggaeBeat(); scheduleNextBeat(); } }, td);
+        }
+        function startMetronome() {
+            if (metronomeTimeout) { clearTimeout(metronomeTimeout); metronomeTimeout = null; }
+            isMetronomeRunning = true; beatCounter = 0;
+            initAudioContext();
+            nextBeatTime = audioContext.currentTime + 0.1;
+            setTimeout(() => { if (metronomeEnabled && isMetronomeRunning) { playReggaeBeat(); scheduleNextBeat(); } }, 100);
+        }
+        function stopMetronome() { if (metronomeTimeout) { clearTimeout(metronomeTimeout); metronomeTimeout = null; } isMetronomeRunning = false; }
+        function toggleMetronome() {
+            if (!metronomeEnabled) {
+                metronomeEnabled = true;
+                metronomeToggleBtn.textContent = '🎵 ON';
+                metronomeToggleBtn.classList.remove('inactive');
+                metronomeToggleBtn.classList.add('active');
+                if (isActive && currentMode === 'timer') startMetronome();
+            } else {
+                metronomeEnabled = false;
+                metronomeToggleBtn.textContent = '🔇 OFF';
+                metronomeToggleBtn.classList.remove('active');
+                metronomeToggleBtn.classList.add('inactive');
+                stopMetronome();
+            }
+        }
+        metronomeToggleBtn.addEventListener('click', toggleMetronome);
+        let isMuted = false;
+        function toggleMute() {
+            isMuted = !isMuted;
+            muteBadge.innerHTML = isMuted ? '🔇 Sound OFF' : '🔊 Sound ON';
+            muteBadge.classList.toggle('muted', isMuted);
+            statusMsgText.innerText = isActive ? "🧘 Breathing..." : (isMuted ? "✅ Sound muted." : "✅ Sound enabled.");
+        }
+        muteBadge.addEventListener('click', toggleMute);
+        let timerInterval = null, currentSeconds = 30, currentCycleDuration = 30, isActive = false, currentMantra = 7, pendingMantra = null;
+        function getSecondsFromMantra(m) { if (m < 1) m = 1; if (m > 20) m = 20; return m*4 + 2; }
+        function refreshMantraUI() { mantraCountSpan.innerText = currentMantra; secondsHint.innerText = `= ${getSecondsFromMantra(currentMantra)} sec`; }
+        function changeMantra(delta) {
+            let v = currentMantra + delta;
+            if (v < 1) v = 1; if (v > 20) v = 20;
+            if (v === currentMantra) return;
+            if (isActive) {
+                pendingMantra = v; pendingBadge.style.display = "inline-block";
+                statusMsgText.innerText = `⏳ Next cycle: ${pendingMantra} (${getSecondsFromMantra(pendingMantra)}s)`;
+                currentMantra = v; refreshMantraUI();
+            } else {
+                currentMantra = v; refreshMantraUI();
+                currentCycleDuration = getSecondsFromMantra(currentMantra);
+                currentSeconds = currentCycleDuration;
+                secondsDisplay.innerText = currentSeconds;
+                drawProgressCircle(currentSeconds, currentCycleDuration);
+            }
+        }
+        function applyPendingMantraIfNeeded() {
+            if (pendingMantra !== null) {
+                currentMantra = pendingMantra; pendingMantra = null;
+                pendingBadge.style.display = "none";
+                refreshMantraUI();
+                statusMsgText.innerText = `✨ Switched to mantra ${currentMantra} (${getSecondsFromMantra(currentMantra)}s)`;
+            }
+            currentCycleDuration = getSecondsFromMantra(currentMantra);
+        }
+        function drawProgressCircle(rem, tot) {
+            if (!ctx) return;
+            const size = canvas.parentElement.clientWidth;
+            canvas.width = size; canvas.height = size;
+            const c = size/2, r = size/2-16;
+            const frac = (tot-rem)/tot;
+            const start = -Math.PI/2, end = start + 2*Math.PI*frac;
+            ctx.clearRect(0,0,size,size);
+            ctx.beginPath(); ctx.arc(c,c,r,0,2*Math.PI); ctx.strokeStyle='#2c5a7a'; ctx.lineWidth=10; ctx.stroke();
+            ctx.beginPath(); ctx.arc(c,c,r,start,end); ctx.strokeStyle='#4cbb7c'; ctx.lineWidth=10; ctx.lineCap='round'; ctx.stroke();
+        }
+        let customAudio = null;
+        function playCompletionSound() {
+            if (isMuted) return;
+            if (customAudio && customAudio.src) { customAudio.currentTime = 0; customAudio.play().catch(()=>{}); return; }
+            try {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                const ac = new AC();
+                const o = ac.createOscillator(), g = ac.createGain();
+                o.connect(g); g.connect(ac.destination);
+                o.frequency.value = 880;
+                g.gain.value = 0.2*metroVolume;
+                o.start();
+                g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime+0.6);
+                o.stop(ac.currentTime+0.5);
+            } catch (e) {}
+        }
+        function vibratePhone() {
+            if (navigator.vibrate) {
+                navigator.vibrate(getVibrationPattern());
+                let pd = vibrationPatternSelect.value;
+                if (pd === 'triple') pd = 'strong triple burst';
+                statusMsgText.innerText = `🔔 ${pd} vibration!`;
+                setTimeout(() => { if (isActive) statusMsgText.innerText = "🧘 Breathing..."; }, 1200);
+            }
+        }
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            if (isActive) stopTimer();
+            applyPendingMantraIfNeeded();
+            currentCycleDuration = getSecondsFromMantra(currentMantra);
+            currentSeconds = currentCycleDuration;
+            secondsDisplay.innerText = currentSeconds;
+            isActive = true;
+            drawProgressCircle(currentSeconds, currentCycleDuration);
+            statusMsgText.innerText = "🧘 Breathing...";
+            requestWakeLock();
+            if (metronomeEnabled) startMetronome();
+            timerInterval = setInterval(() => {
+                if (!isActive) return;
+                if (currentSeconds <= 1) {
+                    clearInterval(timerInterval); timerInterval = null;
+                    if (completionAlertEnabled) { playCompletionSound(); vibratePhone(); }
+                    applyPendingMantraIfNeeded();
+                    currentCycleDuration = getSecondsFromMantra(currentMantra);
+                    currentSeconds = currentCycleDuration;
+                    secondsDisplay.innerText = currentSeconds;
+                    drawProgressCircle(currentSeconds, currentCycleDuration);
+                    startTimer();
+                    return;
+                }
+                currentSeconds--;
+                secondsDisplay.innerText = currentSeconds;
+                drawProgressCircle(currentSeconds, currentCycleDuration);
+                const elapsed = currentCycleDuration - currentSeconds;
+                if (elapsed % 4 === 0 && currentSeconds > 2 && currentSeconds !== currentCycleDuration && elapsed > 0) {
+                    triggerInnerFlash('orange', 180); playSnare();
+                }
+                if (currentSeconds === 2) { triggerInnerFlash('teal', 400); playTealSound(); }
+                if (currentSeconds === 1) triggerInnerFlash('teal', 400);
+            }, 1000);
+        }
+        function stopTimer() {
+            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+            isActive = false; releaseWakeLock(); stopMetronome(); stopLoopMetronome();
+            if (pendingMantra !== null) { pendingMantra = null; pendingBadge.style.display = "none"; refreshMantraUI(); }
+            currentCycleDuration = getSecondsFromMantra(currentMantra);
+            currentSeconds = currentCycleDuration;
+            secondsDisplay.innerText = currentSeconds;
+            drawProgressCircle(currentSeconds, currentCycleDuration);
+            statusMsgText.innerText = "⏸ Stopped. Press Start";
+            innerFlash.style.opacity = '0';
+            innerFlash.classList.remove('orange','teal','major','minor');
+        }
+        audioUpload.addEventListener('change', e => {
+            const f = e.target.files[0]; if (!f) return;
+            if (customAudio) { customAudio.pause(); URL.revokeObjectURL(customAudio.src); }
+            customAudio = new Audio(URL.createObjectURL(f)); customAudio.load();
+            audioFileNameSpan.innerText = `✅ Loaded: ${f.name}`;
+        });
+        startBtn.addEventListener('click', () => { if (timerInterval) stopTimer(); startTimer(); });
+        stopBtn.addEventListener('click', stopTimer);
+        oneShotBtn.addEventListener('click', () => { if (oneShotRunning) stopOneShot(); startOneShot(); });
+        oneShotStopBtn.addEventListener('click', stopOneShot);
+        decrementBtn.addEventListener('click', () => changeMantra(-1));
+        incrementBtn.addEventListener('click', () => changeMantra(1));
+        document.addEventListener('keydown', (e) => {
+            const tag = document.activeElement.tagName;
+            if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+            switch (e.key) {
+                case 'ArrowUp': e.preventDefault(); changeMantra(1); break;
+                case 'ArrowDown': e.preventDefault(); changeMantra(-1); break;
+                case 'ArrowRight': e.preventDefault(); tallyCount++; updateTallyDisplay(); break;
+                case 'ArrowLeft': e.preventDefault(); if (tallyCount > 0) { tallyCount--; updateTallyDisplay(); } break;
+            }
+        });
+        function init() {
+            currentCycleDuration = getSecondsFromMantra(7);
+            currentSeconds = currentCycleDuration;
+            secondsDisplay.innerText = currentSeconds;
+            drawProgressCircle(currentSeconds, currentCycleDuration);
+            refreshMantraUI();
+            tallyCountDisplay.textContent = tallyCount;
+            metronomeToggleBtn.textContent = '🎵 ON';
+            metronomeToggleBtn.classList.add('active');
+            statusMsgText.innerText = "✅ Ready. " + VERSION;
+            roundInfo.textContent = `Round: 0% (0:00.00 / 7:42.00)`;
+            updateModeUI();
+        }
+        init();
+    })();
+    </script>
+</body>
+</html>
